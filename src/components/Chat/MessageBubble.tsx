@@ -13,7 +13,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onCopy, o
   const isError = message.status === 'error'
 
   return (
-    <div className={`message-bubble ${isUser ? 'message-user' : 'message-assistant'} ${isError ? 'message-error-bubble' : ''}`}>
+    <div className={`message-bubble ${isUser ? 'message-user' : 'message-assistant'} ${isStreaming ? 'message-bubble-streaming' : ''} ${isError ? 'message-error-bubble' : ''}`}>
       <div className="message-avatar">
         {isUser ? (
           <div className="avatar avatar-user">你</div>

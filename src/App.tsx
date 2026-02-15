@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { ChatArea } from './components/Chat/ChatArea'
 import { SessionList } from './components/Sidebar/SessionList'
 import { StatusIndicator } from './components/Sidebar/StatusIndicator'
@@ -10,6 +10,7 @@ import { GatewaySetup } from './components/Setup/GatewaySetup'
 import { SetupComplete } from './components/Setup/SetupComplete'
 import { ErrorBoundary } from './components/Common/ErrorBoundary'
 import { Loading } from './components/Common/Loading'
+import DottedGlowBackground from './components/Common/DottedGlowBackground'
 import { useGateway } from './hooks/useGateway'
 import { useWebSocket } from './hooks/useWebSocket'
 import { useSetup, type SetupStep } from './hooks/useSetup'
@@ -339,8 +340,10 @@ function App() {
       <div className="app-container">
         <div className="sidebar">
           <div className="sidebar-header">
-            <h1 className="app-title">OpenClaw</h1>
-            <span className="app-subtitle">中文版</span>
+            <div className="logo">
+              <span className="app-title">OpenClaw</span>
+              <span className="app-subtitle">中文版</span>
+            </div>
           </div>
           <SessionList
             sessions={sessions}
@@ -354,6 +357,13 @@ function App() {
           </div>
         </div>
         <div className="main-content">
+          <DottedGlowBackground
+            gap={24}
+            radius={1.5}
+            color="rgba(255, 255, 255, 0.01)"
+            glowColor="rgba(59, 130, 246, 0.15)"
+            speedScale={0.8}
+          />
           <ChatArea
             messages={activeSession?.messages ?? []}
             onSend={handleSend}

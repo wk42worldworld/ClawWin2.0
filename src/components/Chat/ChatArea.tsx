@@ -45,13 +45,15 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       <div className="chat-messages" ref={scrollRef} onScroll={handleScroll}>
         {messages.length === 0 ? (
           <div className="chat-empty">
-            <div className="chat-empty-icon">
-              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
+            <div className="chat-empty-content">
+              <div className="chat-empty-icon">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+              </div>
+              <h3>OpenClaw</h3>
+              <p>你的 AI 助手，随时准备为您服务</p>
             </div>
-            <h3>开始新对话</h3>
-            <p>输入任何问题，AI 将为你解答</p>
           </div>
         ) : (
           <>
@@ -63,17 +65,18 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               />
             ))}
             {isWaiting && (
-              <div className="typing-indicator">
+              <div className="message-bubble message-assistant message-bubble-waiting">
                 <div className="message-avatar">
                   <div className="avatar avatar-assistant">AI</div>
                 </div>
-                <div className="typing-indicator-body">
-                  <div className="typing-dots">
-                    <span className="typing-dot" />
-                    <span className="typing-dot" />
-                    <span className="typing-dot" />
+                <div className="message-body">
+                  <div className="message-content">
+                    <div className="typing-dots">
+                      <span className="typing-dot" />
+                      <span className="typing-dot" />
+                      <span className="typing-dot" />
+                    </div>
                   </div>
-                  <span className="typing-text">AI 正在思考...</span>
                 </div>
               </div>
             )}

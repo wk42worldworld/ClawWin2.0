@@ -25,7 +25,7 @@ const STATE_COLORS: Record<GatewayState, string> = {
 export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ state, onRestart }) => {
   return (
     <div className="status-indicator">
-      <div className="status-dot" style={{ backgroundColor: STATE_COLORS[state] }} />
+      <div className="status-dot" style={{ backgroundColor: STATE_COLORS[state], ...(state === 'ready' ? { boxShadow: '0 0 12px rgba(16, 185, 129, 0.6)' } : {}) }} />
       <span className="status-text">{STATE_LABELS[state]}</span>
       {(state === 'error' || state === 'stopped') && onRestart && (
         <button className="btn-status-restart" onClick={onRestart}>
