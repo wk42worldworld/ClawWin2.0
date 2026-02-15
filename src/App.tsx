@@ -341,8 +341,7 @@ function App() {
         <div className="sidebar">
           <div className="sidebar-header">
             <div className="logo">
-              <span className="app-title">OpenClaw</span>
-              <span className="app-subtitle">中文版</span>
+              <span className="app-title">ClawWin</span>
             </div>
           </div>
           <SessionList

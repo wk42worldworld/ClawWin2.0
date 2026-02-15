@@ -1,11 +1,11 @@
 {
   "app": {
-    "name": "OpenClaw 中文版",
+    "name": "ClawWin",
     "subtitle": "你的专属 AI 助手"
   },
   "setup": {
     "welcome": {
-      "title": "欢迎使用 OpenClaw 中文版",
+      "title": "欢迎使用 ClawWin",
       "subtitle": "你的专属 AI 助手",
       "description": "只需几步简单配置，即可开始与 AI 对话。",
       "start": "开始配置"

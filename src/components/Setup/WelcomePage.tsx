@@ -10,10 +10,10 @@ export const WelcomePage: React.FC<WelcomePageProps> = ({ onNext }) => {
       <div className="setup-logo">
         <svg width="80" height="80" viewBox="0 0 100 100" fill="none">
           <circle cx="50" cy="50" r="45" fill="#2563eb" />
-          <text x="50" y="62" textAnchor="middle" fill="white" fontSize="36" fontWeight="bold">OC</text>
+          <text x="50" y="62" textAnchor="middle" fill="white" fontSize="36" fontWeight="bold">CW</text>
         </svg>
       </div>
-      <h1 className="setup-title">欢迎使用 OpenClaw 中文版</h1>
+      <h1 className="setup-title">欢迎使用 ClawWin</h1>
       <p className="setup-subtitle">你的专属 AI 助手</p>
       <p className="setup-description">
         只需几步简单配置，即可开始与 AI 对话。

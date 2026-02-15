@@ -51,7 +51,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                 </svg>
               </div>
-              <h3>OpenClaw</h3>
+              <h3>ClawWin</h3>
               <p>你的 AI 助手，随时准备为您服务</p>
             </div>
           </div>

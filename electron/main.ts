@@ -21,7 +21,7 @@ function createWindow() {
     height: 750,
     minWidth: 800,
     minHeight: 600,
-    title: 'OpenClaw 中文版',
+    title: 'ClawWin',
     icon: path.join(__dirname, '../assets/icon.ico'),
     webPreferences: {
       preload: PRELOAD,

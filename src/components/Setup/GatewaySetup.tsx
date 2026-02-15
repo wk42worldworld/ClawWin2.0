@@ -61,7 +61,7 @@ export const GatewaySetup: React.FC<GatewaySetupProps> = ({
             <span className="info-icon">&#128268;</span>
             <div>
               <strong>什么是 Gateway？</strong>
-              <p>Gateway 是 OpenClaw 的本地服务，负责与 AI 模型通信。它运行在您的电脑上，处理所有 API 请求和会话管理。</p>
+              <p>Gateway 是 ClawWin 的本地服务，负责与 AI 模型通信。它运行在您的电脑上，处理所有 API 请求和会话管理。</p>
             </div>
           </div>
         </div>

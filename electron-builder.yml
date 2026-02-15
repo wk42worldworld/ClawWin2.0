@@ -1,5 +1,5 @@
 appId: cn.openclaw.desktop
-productName: "OpenClaw 中文版"
+productName: "ClawWin"
 copyright: MIT License
 directories:
   output: release
@@ -21,7 +21,7 @@ win:
       arch:
         - x64
   icon: assets/icon.ico
-  artifactName: "OpenClaw中文版-Setup-${version}.${ext}"
+  artifactName: "ClawWin-Setup-${version}.${ext}"
 
 nsis:
   oneClick: false
@@ -35,6 +35,6 @@ nsis:
   deleteAppDataOnUninstall: false
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: "OpenClaw 中文版"
+  shortcutName: "ClawWin"
   runAfterFinish: true
   allowElevation: false

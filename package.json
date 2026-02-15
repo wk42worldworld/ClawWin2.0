@@ -1,9 +1,9 @@
 {
   "name": "openclaw-cn-desktop",
   "version": "1.0.0",
-  "description": "OpenClaw 中文版 — AI 助手桌面客户端（原版 openclaw 后端）",
+  "description": "ClawWin — AI 助手桌面客户端",
   "main": "dist-electron/main.js",
-  "author": "OpenClaw CN",
+  "author": "ClawWin",
   "license": "MIT",
   "scripts": {
     "dev": "vite",

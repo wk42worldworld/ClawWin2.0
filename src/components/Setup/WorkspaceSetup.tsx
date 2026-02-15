@@ -36,7 +36,7 @@ export const WorkspaceSetup: React.FC<WorkspaceSetupProps> = ({
   return (
     <div className="setup-page workspace-setup">
       <h2 className="setup-title">工作空间</h2>
-      <p className="setup-subtitle">选择 OpenClaw 的工作目录</p>
+      <p className="setup-subtitle">选择 ClawWin 的工作目录</p>
 
       <div className="workspace-form">
         <div className="workspace-description">
@@ -44,7 +44,7 @@ export const WorkspaceSetup: React.FC<WorkspaceSetupProps> = ({
             <span className="info-icon">&#128193;</span>
             <div>
               <strong>什么是工作空间？</strong>
-              <p>工作空间是 OpenClaw 存储对话上下文和配置的目录。所有会话数据、记忆和项目文件都将保存在此处。</p>
+              <p>工作空间是 ClawWin 存储对话上下文和配置的目录。所有会话数据、记忆和项目文件都将保存在此处。</p>
             </div>
           </div>
         </div>
