@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dist-electron/
+release/
+bundled/
+*.exe
+*.log
+.DS_Store
+Thumbs.db

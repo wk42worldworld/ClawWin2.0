@@ -1,0 +1,40 @@
+appId: cn.openclaw.desktop
+productName: "OpenClaw 中文版"
+copyright: MIT License
+directories:
+  output: release
+  buildResources: assets
+
+files:
+  - dist/**/*
+  - dist-electron/**/*
+
+extraResources:
+  - from: bundled/
+    to: bundled/
+    filter:
+      - "**/*"
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: assets/icon.ico
+  artifactName: "OpenClaw中文版-Setup-${version}.${ext}"
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  installerIcon: assets/icon.ico
+  uninstallerIcon: assets/icon.ico
+  installerHeaderIcon: assets/icon.ico
+  language: "2052"
+  include: installer/installer.nsh
+  perMachine: false
+  deleteAppDataOnUninstall: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: "OpenClaw 中文版"
+  runAfterFinish: true
+  allowElevation: false
