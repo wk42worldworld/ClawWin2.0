@@ -9,7 +9,7 @@ interface InputAreaProps {
 export const InputArea: React.FC<InputAreaProps> = ({
   onSend,
   disabled = false,
-  placeholder = '输入消息... (Enter 发送, Shift+Enter 换行)',
+  placeholder = '输入消息...',
 }) => {
   const [input, setInput] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -21,7 +21,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
     setInput('')
     // Reset textarea height
     if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto'
+      textareaRef.current.style.height = '64px'
     }
   }, [input, disabled, onSend])
 
@@ -40,7 +40,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
     // Auto-resize
     const textarea = e.target
     textarea.style.height = 'auto'
-    textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px'
+    textarea.style.height = Math.max(64, Math.min(textarea.scrollHeight + 8, 200)) + 'px'
   }, [])
 
   return (
@@ -56,14 +56,15 @@ export const InputArea: React.FC<InputAreaProps> = ({
           disabled={disabled}
           rows={1}
         />
-        <button
-          className="btn-send"
-          onClick={handleSend}
-          disabled={disabled || !input.trim()}
-        >
-          发送
-        </button>
       </div>
+      <button
+        className="btn-send"
+        onClick={handleSend}
+        disabled={disabled || !input.trim()}
+        title="发送消息"
+      >
+&#x21B5;
+      </button>
     </div>
   )
 }

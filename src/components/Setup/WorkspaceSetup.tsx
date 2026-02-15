@@ -4,12 +4,14 @@ interface WorkspaceSetupProps {
   workspace: string
   onBack: () => void
   onNext: (workspace: string) => void
+  onSkip?: () => void
 }
 
 export const WorkspaceSetup: React.FC<WorkspaceSetupProps> = ({
   workspace: initialWorkspace,
   onBack,
   onNext,
+  onSkip,
 }) => {
   const [workspace, setWorkspace] = useState(initialWorkspace)
   const [error, setError] = useState<string | null>(null)
@@ -78,6 +80,7 @@ export const WorkspaceSetup: React.FC<WorkspaceSetupProps> = ({
 
       <div className="setup-actions">
         <button className="btn-secondary" onClick={onBack}>上一步</button>
+        {onSkip && <button className="btn-secondary" onClick={onSkip}>跳过</button>}
         <button className="btn-primary" onClick={handleNext}>
           下一步
         </button>

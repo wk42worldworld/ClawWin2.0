@@ -130,7 +130,7 @@ export const MODEL_PROVIDERS: ModelProvider[] = [
   },
 ]
 
-export type SetupStep = 'welcome' | 'model' | 'apikey' | 'workspace' | 'gateway' | 'complete'
+export type SetupStep = 'welcome' | 'model' | 'apikey' | 'workspace' | 'gateway' | 'channels' | 'complete'
 
 /**
  * Generate a random 48-character hex token for gateway authentication.
@@ -227,6 +227,7 @@ export function useSetup(): UseSetupReturn {
         workspace: cfg.workspace,
         gatewayPort: cfg.gatewayPort,
         gatewayToken: cfg.gatewayToken,
+        channels: cfg.channels,
         // Pre-built structure hints
         _providerModelKey: providerModelKey,
         _now: now,

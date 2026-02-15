@@ -34,7 +34,7 @@ export const SetupComplete: React.FC<SetupCompleteProps> = ({
   return (
     <div className="setup-page complete-page">
       <div className="complete-icon">
-        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2">
+        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#24D391" strokeWidth="2">
           <circle cx="12" cy="12" r="10" />
           <path d="M8 12l2.5 2.5L16 9" />
         </svg>

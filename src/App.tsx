@@ -1,22 +1,22 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
+import openclawLogo from '../assets/icon.png'
 import { ChatArea } from './components/Chat/ChatArea'
 import { SessionList } from './components/Sidebar/SessionList'
-import { StatusIndicator } from './components/Sidebar/StatusIndicator'
 import { WelcomePage } from './components/Setup/WelcomePage'
 import { ModelSelect } from './components/Setup/ModelSelect'
 import { ApiKeyInput } from './components/Setup/ApiKeyInput'
 import { WorkspaceSetup } from './components/Setup/WorkspaceSetup'
 import { GatewaySetup } from './components/Setup/GatewaySetup'
+import { ChannelSetup } from './components/Setup/ChannelSetup'
 import { SetupComplete } from './components/Setup/SetupComplete'
 import { ErrorBoundary } from './components/Common/ErrorBoundary'
 import { Loading } from './components/Common/Loading'
-import DottedGlowBackground from './components/Common/DottedGlowBackground'
 import { useGateway } from './hooks/useGateway'
 import { useWebSocket } from './hooks/useWebSocket'
 import { useSetup, type SetupStep } from './hooks/useSetup'
 import type { ChatMessage, ChatSession, ModelProvider, ModelInfo } from './types'
 
-const SETUP_STEPS: SetupStep[] = ['welcome', 'model', 'apikey', 'workspace', 'gateway', 'complete']
+const SETUP_STEPS: SetupStep[] = ['welcome', 'model', 'apikey', 'workspace', 'gateway', 'channels', 'complete']
 
 function generateId(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
@@ -32,6 +32,8 @@ function App() {
   const [selectedProviderObj, setSelectedProviderObj] = useState<ModelProvider | null>(null)
   const [selectedModelObj, setSelectedModelObj] = useState<ModelInfo | null>(null)
   const [isWaiting, setIsWaiting] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
+  const [showSkills, setShowSkills] = useState(false)
   const waitingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // 超时处理：30 秒无响应自动取消等待并提示错误
@@ -272,6 +274,7 @@ function App() {
               onSelect={handleModelSelect}
               onBack={() => setup.setStep('welcome')}
               onNext={() => setup.setStep('apikey')}
+              onSkip={() => setup.setStep('apikey')}
             />
           )}
 
@@ -287,6 +290,7 @@ function App() {
                 setup.updateConfig({ apiKey })
                 setup.setStep('workspace')
               }}
+              onSkip={() => setup.setStep('workspace')}
             />
           )}
 
@@ -298,6 +302,7 @@ function App() {
                 setup.updateConfig({ workspace })
                 setup.setStep('gateway')
               }}
+              onSkip={() => setup.setStep('gateway')}
             />
           )}
 
@@ -308,6 +313,18 @@ function App() {
               onBack={() => setup.setStep('workspace')}
               onNext={(port) => {
                 setup.updateConfig({ gatewayPort: port })
+                setup.setStep('channels')
+              }}
+              onSkip={() => setup.setStep('channels')}
+            />
+          )}
+
+          {setup.step === 'channels' && (
+            <ChannelSetup
+              channels={setup.config.channels}
+              onBack={() => setup.setStep('gateway')}
+              onNext={(channels) => {
+                setup.updateConfig({ channels })
                 setup.setStep('complete')
               }}
             />
@@ -324,7 +341,7 @@ function App() {
               error={setup.saveError}
               onBack={() => {
                 setup.clearError()
-                setup.setStep('gateway')
+                setup.setStep('channels')
               }}
               onComplete={handleSetupComplete}
             />
@@ -338,39 +355,152 @@ function App() {
   return (
     <ErrorBoundary>
       <div className="app-container">
-        <div className="sidebar">
-          <div className="sidebar-header">
-            <div className="logo">
-              <span className="app-title">ClawWin</span>
+        <div className="navbar">
+          <div className="navbar-logo">
+            <div className="navbar-logo-circle">
+              <img src={openclawLogo} alt="OpenClaw" className="navbar-logo-img" />
+            </div>
+            <div className="navbar-brand">
+              <span className="navbar-brand-name">ClawWin</span>
+              <div className="navbar-accent-line" />
             </div>
           </div>
-          <SessionList
-            sessions={sessions}
-            activeSessionId={activeSessionId}
-            onSelectSession={setActiveSessionId}
-            onNewSession={createSession}
-            onDeleteSession={deleteSession}
-          />
-          <div className="sidebar-footer">
-            <StatusIndicator state={gateway.state} onRestart={gateway.restart} />
+        </div>
+        <div className="app-main">
+          <div className="system-sidebar">
+            <div className="system-sidebar-icons">
+              <div className="system-icon-item" style={{animationDelay: '0s'}} onClick={() => setShowSkills(true)}>
+                <div className="system-icon-circle">
+                  <span className="system-icon-emoji">🧩</span>
+                </div>
+                <span className="system-icon-label">技能</span>
+              </div>
+              <div className="system-icon-item" style={{animationDelay: '0.05s'}} onClick={() => setShowSettings(true)}>
+                <div className="system-icon-circle">
+                  <span className="system-icon-emoji">⚙️</span>
+                </div>
+                <span className="system-icon-label">设置</span>
+              </div>
+            </div>
+          </div>
+          <div className="sidebar">
+            <SessionList
+              sessions={sessions}
+              activeSessionId={activeSessionId}
+              onSelectSession={setActiveSessionId}
+              onNewSession={createSession}
+              onDeleteSession={deleteSession}
+            />
+          </div>
+          <div className="main-content">
+            <ChatArea
+              messages={activeSession?.messages ?? []}
+              onSend={handleSend}
+              gatewayState={gateway.state}
+              isWaiting={isWaiting}
+              gatewayPort={gateway.port}
+            />
           </div>
         </div>
-        <div className="main-content">
-          <DottedGlowBackground
-            gap={24}
-            radius={1.5}
-            color="rgba(255, 255, 255, 0.01)"
-            glowColor="rgba(59, 130, 246, 0.15)"
-            speedScale={0.8}
-          />
-          <ChatArea
-            messages={activeSession?.messages ?? []}
-            onSend={handleSend}
-            gatewayState={gateway.state}
-            isWaiting={isWaiting}
-          />
+        <div className="app-footer">
+          <div className="footer-version">
+            <div className="footer-status-dot" style={{ backgroundColor: gateway.state === 'ready' ? '#22c55e' : gateway.state === 'error' ? '#ef4444' : '#f59e0b', boxShadow: gateway.state === 'ready' ? '0 0 12px rgba(16, 185, 129, 0.6)' : 'none' }} />
+          </div>
         </div>
       </div>
+
+      {showSettings && (
+        <div className="settings-overlay" onClick={() => setShowSettings(false)}>
+          <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="settings-header">
+              <h2>设置</h2>
+              <button className="settings-close" onClick={() => setShowSettings(false)}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="settings-body">
+              <div className="settings-section">
+                <h3>工作区</h3>
+                <p className="settings-value">{setup.config.workspace ?? '~/openclaw'}</p>
+              </div>
+              <div className="settings-section">
+                <h3>模型</h3>
+                <p className="settings-value">{selectedProviderObj?.name ?? setup.config.provider} / {selectedModelObj?.name ?? setup.config.modelName}</p>
+              </div>
+              <div className="settings-section">
+                <h3>网关服务</h3>
+                <p className="settings-value">端口 {gateway.port} · {gateway.state === 'ready' ? '运行中' : gateway.state}</p>
+              </div>
+              <div className="settings-section">
+                <h3>消息渠道</h3>
+                {setup.config.channels && Object.keys(setup.config.channels).length > 0 ? (
+                  <div className="settings-channels-list">
+                    {Object.keys(setup.config.channels).map((ch) => (
+                      <span key={ch} className="settings-channel-tag">{ch}</span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="settings-value settings-muted">未配置</p>
+                )}
+              </div>
+              <button
+                className="btn-primary settings-reconfig-btn"
+                onClick={() => {
+                  setShowSettings(false)
+                  setShowSetup(true)
+                  setup.setStep('welcome')
+                }}
+              >
+                重新配置向导
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSkills && (
+        <div className="settings-overlay" onClick={() => setShowSkills(false)}>
+          <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="settings-header">
+              <h2>技能管理</h2>
+              <button className="settings-close" onClick={() => setShowSkills(false)}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="settings-body">
+              <div className="settings-section">
+                <h3>技能目录</h3>
+                <p className="settings-value">{(setup.config.workspace ?? '~/openclaw').replace(/\/$/, '') + '/skills'}</p>
+              </div>
+              <div className="skills-actions">
+                <button
+                  className="btn-primary skills-btn"
+                  onClick={() => {
+                    const skillsPath = (setup.config.workspace ?? '~/openclaw').replace(/\/$/, '') + '/skills'
+                    window.electronAPI.shell.openPath(skillsPath)
+                  }}
+                >
+                  打开技能文件夹
+                </button>
+                <button
+                  className="btn-primary skills-btn skills-btn-store"
+                  onClick={() => {
+                    window.electronAPI.shell.openExternal('https://clawhub.ai/')
+                  }}
+                >
+                  技能商城
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </ErrorBoundary>
   )
 }

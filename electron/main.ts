@@ -17,16 +17,16 @@ function createWindow() {
   Menu.setApplicationMenu(null)
 
   mainWindow = new BrowserWindow({
-    width: 1100,
-    height: 750,
-    minWidth: 800,
-    minHeight: 600,
+    width: 1520,
+    height: 980,
+    minWidth: 1100,
+    minHeight: 780,
     title: 'ClawWin',
     icon: path.join(__dirname, '../assets/icon.ico'),
     titleBarStyle: 'hidden',
     titleBarOverlay: {
-      color: '#0a0a0f',
-      symbolColor: '#94a3b8',
+      color: '#2D2D2D',
+      symbolColor: '#ffffff',
       height: 36,
     },
     webPreferences: {
@@ -139,6 +139,11 @@ function setupIPC() {
     if (url.startsWith('https://') || url.startsWith('http://')) {
       shell.openExternal(url)
     }
+  })
+
+  // Open folder in file explorer
+  ipcMain.handle('shell:openPath', (_event, folderPath: string) => {
+    shell.openPath(folderPath)
   })
 
   // Get app version

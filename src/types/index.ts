@@ -1,4 +1,49 @@
-import type { ElectronAPI } from '../electron/preload'
+// ElectronAPI type - mirrors electron/preload.ts to avoid cross-boundary import
+interface ElectronGateway {
+  getStatus: () => Promise<GatewayStatus>
+  start: () => Promise<void>
+  stop: () => Promise<void>
+  restart: () => Promise<void>
+  getToken: () => Promise<string | null>
+  getPort: () => Promise<number>
+  signDeviceAuth: (params: {
+    clientId: string
+    clientMode: string
+    role: string
+    scopes: string[]
+    token: string
+    nonce?: string
+  }) => Promise<{
+    id: string
+    publicKey: string
+    signature: string
+    signedAt: number
+    nonce?: string
+  }>
+  onStateChanged: (callback: (state: GatewayState) => void) => () => void
+  onLog: (callback: (log: GatewayLog) => void) => () => void
+}
+
+interface ElectronSetup {
+  isFirstRun: () => Promise<boolean>
+  getConfigPath: () => Promise<string>
+  saveConfig: (config: Record<string, unknown>) => Promise<{ ok: boolean; error?: string }>
+  validateApiKey: (params: {
+    baseUrl: string
+    apiFormat: string
+    apiKey: string
+    modelId: string
+  }) => Promise<{ ok: boolean; error?: string }>
+  getHomedir: () => Promise<string>
+  getDefaultWorkspace: () => Promise<string>
+}
+
+interface ElectronAPI {
+  gateway: ElectronGateway
+  setup: ElectronSetup
+  shell: { openExternal: (url: string) => Promise<void>; openPath: (folderPath: string) => Promise<void> }
+  app: { getVersion: () => Promise<string> }
+}
 
 declare global {
   interface Window {
@@ -64,4 +109,5 @@ export interface SetupConfig {
   workspace?: string
   gatewayPort?: number
   gatewayToken?: string
+  channels?: Record<string, Record<string, string>>
 }

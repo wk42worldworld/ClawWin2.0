@@ -5,6 +5,7 @@ interface GatewaySetupProps {
   token: string
   onBack: () => void
   onNext: (port: number) => void
+  onSkip?: () => void
 }
 
 export const GatewaySetup: React.FC<GatewaySetupProps> = ({
@@ -12,6 +13,7 @@ export const GatewaySetup: React.FC<GatewaySetupProps> = ({
   token,
   onBack,
   onNext,
+  onSkip,
 }) => {
   const [port, setPort] = useState(initialPort)
   const [copied, setCopied] = useState(false)
@@ -109,7 +111,7 @@ export const GatewaySetup: React.FC<GatewaySetupProps> = ({
         <div className="gateway-field">
           <label className="input-label">绑定模式</label>
           <div className="gateway-bind-info">
-            <span className="bind-badge">loopback</span>
+            <span className="bind-badge">Loopback</span>
             <span className="bind-desc">仅本机访问 - 外部网络无法连接，安全可靠</span>
           </div>
         </div>
@@ -117,6 +119,7 @@ export const GatewaySetup: React.FC<GatewaySetupProps> = ({
 
       <div className="setup-actions">
         <button className="btn-secondary" onClick={onBack}>上一步</button>
+        {onSkip && <button className="btn-secondary" onClick={onSkip}>跳过</button>}
         <button
           className="btn-primary"
           onClick={handleNext}

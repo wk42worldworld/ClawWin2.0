@@ -1,37 +1,303 @@
-import React from 'react'
+import { useState, useCallback } from 'react'
 
-interface ChannelSetupProps {
-  onBack: () => void
-  onNext: () => void
-  onSkip: () => void
+/* ─── SVG Logos ─── */
+const TelegramLogo = () => (
+  <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.28-.02-.12.03-2.02 1.28-5.69 3.77-.54.37-1.03.55-1.47.54-.48-.01-1.4-.27-2.09-.49-.84-.28-1.51-.42-1.45-.89.03-.25.38-.5 1.04-.76 4.09-1.78 6.82-2.96 8.2-3.52 3.9-1.63 4.71-1.91 5.23-1.92.12 0 .37.03.54.17.14.12.18.28.2.47-.01.06.01.24 0 .37z" fill="#26A5E4"/>
+  </svg>
+)
+const WhatsAppLogo = () => (
+  <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
+    <path d="M17.47 14.38c-.29-.14-1.7-.84-1.96-.93-.27-.1-.46-.15-.66.14-.2.29-.76.93-.93 1.12-.17.2-.34.22-.63.07-.29-.14-1.22-.45-2.33-1.43-.86-.77-1.44-1.71-1.61-2-.17-.29-.02-.45.13-.59.13-.13.29-.34.44-.51.14-.17.2-.29.29-.48.1-.2.05-.37-.02-.51-.07-.15-.66-1.58-.9-2.16-.24-.57-.48-.49-.66-.5h-.56c-.2 0-.51.07-.78.37-.27.29-1.02 1-1.02 2.43s1.05 2.82 1.19 3.01c.15.2 2.06 3.14 4.99 4.41.7.3 1.24.48 1.66.61.7.22 1.34.19 1.84.12.56-.08 1.7-.7 1.94-1.37.24-.68.24-1.26.17-1.38-.07-.12-.27-.19-.56-.34zm-5.44 7.44h-.02a9.87 9.87 0 01-5.03-1.38l-.36-.22-3.74.98 1-3.65-.23-.37A9.86 9.86 0 012.18 12c0-5.45 4.44-9.89 9.9-9.89a9.89 9.89 0 019.89 9.9c0 5.45-4.44 9.89-9.9 9.89l-.04-.01zM12.04 0C5.39 0 0 5.39 0 12.04c0 2.12.56 4.19 1.61 6.01L0 24l6.12-1.6A12.02 12.02 0 0012.04 24C18.69 24 24 18.62 24 12.04 24 5.39 18.62 0 12.04 0z" fill="#25D366"/>
+  </svg>
+)
+const DiscordLogo = () => (
+  <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
+    <path d="M20.32 4.37a19.8 19.8 0 00-4.89-1.52.07.07 0 00-.08.04c-.21.38-.44.87-.61 1.26a18.27 18.27 0 00-5.49 0 12.64 12.64 0 00-.62-1.26.07.07 0 00-.08-.04 19.74 19.74 0 00-4.89 1.52.07.07 0 00-.03.03C1.28 8.22.63 11.96.98 15.65a.08.08 0 00.03.06 19.9 19.9 0 005.99 3.03.08.08 0 00.08-.03c.46-.63.87-1.3 1.22-2a.08.08 0 00-.04-.1 13.1 13.1 0 01-1.87-.9.08.08 0 01-.01-.12c.13-.09.25-.19.37-.29a.07.07 0 01.08-.01c3.93 1.8 8.18 1.8 12.07 0a.07.07 0 01.08.01c.12.1.25.2.37.29a.08.08 0 01-.01.12c-.6.35-1.22.65-1.87.9a.08.08 0 00-.04.1c.36.7.77 1.37 1.22 2a.07.07 0 00.08.03 19.84 19.84 0 006-3.03.08.08 0 00.03-.05c.42-4.34-.7-8.04-2.96-11.35a.06.06 0 00-.03-.03zM8.02 13.33c-.98 0-1.79-.9-1.79-2.01s.79-2.01 1.79-2.01c1.01 0 1.8.91 1.79 2.01 0 1.11-.79 2.01-1.79 2.01zm6.62 0c-.98 0-1.79-.9-1.79-2.01s.79-2.01 1.79-2.01c1.01 0 1.8.91 1.79 2.01 0 1.11-.78 2.01-1.79 2.01z" fill="#5865F2"/>
+  </svg>
+)
+const FeishuLogo = () => (
+  <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
+    <path d="M5.57 4.05c-.55-.78-.56-1.73-.05-2.15.14-.12.32-.15.48-.12 2.73.56 5.18 2.03 7.03 4.16l.44.52c.38.46.86 1.04 1.41 1.78L5.57 4.05z" fill="#00D6B9"/>
+    <path d="M19.24 9.9a16.52 16.52 0 00-4.87-5.36c-.58-.44-1.12-.82-1.6-1.13l-.52-.33c1.94 2.87 2.95 6.28 2.86 9.75-.01.47-.04.93-.09 1.38l-.02.15c-.08.6-.2 1.2-.36 1.78l4.84-3.91c.67-.54.67-1.56-.24-2.33z" fill="#3370FF"/>
+    <path d="M14.7 16.52c-.58 1.39-1.42 2.65-2.48 3.72a11.5 11.5 0 01-3.84 2.6c-.48.2-1 .05-1.24-.39a1 1 0 01-.07-.78l2.82-8.28c.3-.86.67-1.7 1.1-2.5a17.4 17.4 0 012.34-3.36c.2.25.41.52.63.82a20.62 20.62 0 011.83 3.21c.52 1.16.87 2.32.87 2.32-.23.92-.53 1.83-.96 2.64z" fill="#3370FF"/>
+  </svg>
+)
+const SlackLogo = () => (
+  <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
+    <path d="M5.04 15.16a2.1 2.1 0 01-2.1 2.1A2.1 2.1 0 01.84 15.16a2.1 2.1 0 012.1-2.1h2.1v2.1zm1.06 0a2.1 2.1 0 012.1-2.1 2.1 2.1 0 012.1 2.1v5.25a2.1 2.1 0 01-2.1 2.1 2.1 2.1 0 01-2.1-2.1v-5.25z" fill="#E01E5A"/>
+    <path d="M8.2 5.04a2.1 2.1 0 01-2.1-2.1A2.1 2.1 0 018.2.84a2.1 2.1 0 012.1 2.1v2.1H8.2zm0 1.07a2.1 2.1 0 012.1 2.1 2.1 2.1 0 01-2.1 2.1H2.94a2.1 2.1 0 01-2.1-2.1 2.1 2.1 0 012.1-2.1H8.2z" fill="#36C5F0"/>
+    <path d="M18.36 8.2a2.1 2.1 0 012.1-2.1 2.1 2.1 0 012.1 2.1 2.1 2.1 0 01-2.1 2.1h-2.1V8.2zm-1.07 0a2.1 2.1 0 01-2.1 2.1 2.1 2.1 0 01-2.1-2.1V2.94a2.1 2.1 0 012.1-2.1 2.1 2.1 0 012.1 2.1V8.2z" fill="#2EB67D"/>
+    <path d="M15.2 18.36a2.1 2.1 0 012.1 2.1 2.1 2.1 0 01-2.1 2.1 2.1 2.1 0 01-2.1-2.1v-2.1h2.1zm0-1.07a2.1 2.1 0 01-2.1-2.1 2.1 2.1 0 012.1-2.1h5.25a2.1 2.1 0 012.1 2.1 2.1 2.1 0 01-2.1 2.1H15.2z" fill="#ECB22E"/>
+  </svg>
+)
+const GoogleChatLogo = () => (
+  <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
+    <path d="M22 11.08V12a10 10 0 11-5.93-9.14" stroke="#34A853" strokeWidth="2" strokeLinecap="round"/>
+    <path d="M22 4L12 14.01l-3-3" stroke="#34A853" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <rect x="6" y="9" width="5" height="2" rx="1" fill="#4285F4"/>
+    <rect x="6" y="13" width="8" height="2" rx="1" fill="#FBBC05"/>
+  </svg>
+)
+const SignalLogo = () => (
+  <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
+    <path d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.38 5.07L2 22l4.93-1.38A9.96 9.96 0 0012 22c5.52 0 10-4.48 10-10S17.52 2 12 2z" fill="#3A76F0"/>
+    <circle cx="8.5" cy="12" r="1.5" fill="white"/>
+    <circle cx="12" cy="12" r="1.5" fill="white"/>
+    <circle cx="15.5" cy="12" r="1.5" fill="white"/>
+  </svg>
+)
+const IMessageLogo = () => (
+  <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
+    <path d="M12 2C6.477 2 2 5.813 2 10.5c0 2.34 1.094 4.46 2.875 6.031-.188 1.375-.875 2.625-.875 2.625s2.563-.313 4.063-1.281A12.1 12.1 0 0012 19c5.523 0 10-3.813 10-8.5S17.523 2 12 2z" fill="#34C759"/>
+  </svg>
+)
+
+/** 渠道定义 */
+interface ChannelDef {
+  id: string
+  label: string
+  blurb: string
+  logo: React.FC
+  fields: { key: string; label: string; placeholder: string; required: boolean }[]
+  disabled?: boolean
+  disabledReason?: string
 }
 
-export const ChannelSetup: React.FC<ChannelSetupProps> = ({ onBack, onNext, onSkip }) => {
-  return (
-    <div className="setup-page channel-page">
-      <h2 className="setup-title">消息渠道配置</h2>
-      <p className="setup-subtitle">可选：配置额外的消息渠道</p>
+const CHANNELS: ChannelDef[] = [
+  {
+    id: 'telegram',
+    label: 'Telegram',
+    blurb: '使用 @BotFather 注册一个机器人并开始使用',
+    logo: TelegramLogo,
+    fields: [
+      { key: 'botToken', label: 'Bot Token', placeholder: '123456:ABC-DEF...', required: true },
+    ],
+  },
+  {
+    id: 'whatsapp',
+    label: 'WhatsApp',
+    blurb: '使用您自己的号码工作，运行时通过 QR 码配对',
+    logo: WhatsAppLogo,
+    fields: [],
+  },
+  {
+    id: 'discord',
+    label: 'Discord',
+    blurb: '通过 Discord Bot API 集成',
+    logo: DiscordLogo,
+    fields: [
+      { key: 'token', label: 'Bot Token', placeholder: 'MTk...', required: true },
+    ],
+  },
+  {
+    id: 'feishu',
+    label: '飞书 / Lark',
+    blurb: '飞书/Lark 开放平台 WebSocket 机器人集成',
+    logo: FeishuLogo,
+    fields: [
+      { key: 'appId', label: 'App ID', placeholder: 'cli_xxx', required: true },
+      { key: 'appSecret', label: 'App Secret', placeholder: '请输入 App Secret', required: true },
+    ],
+  },
+  {
+    id: 'slack',
+    label: 'Slack',
+    blurb: '通过 Socket Mode 连接 Slack 工作区',
+    logo: SlackLogo,
+    fields: [
+      { key: 'botToken', label: 'Bot Token', placeholder: 'xoxb-...', required: true },
+      { key: 'appToken', label: 'App Token', placeholder: 'xapp-...', required: true },
+    ],
+  },
+  {
+    id: 'googlechat',
+    label: 'Google Chat',
+    blurb: '带有 HTTP webhook 的 Google Workspace 聊天应用',
+    logo: GoogleChatLogo,
+    fields: [],
+  },
+  {
+    id: 'signal',
+    label: 'Signal',
+    blurb: '通过 signal-cli 链接设备',
+    logo: SignalLogo,
+    fields: [
+      { key: 'account', label: '账号', placeholder: '+86...', required: false },
+    ],
+  },
+  {
+    id: 'imessage',
+    label: 'iMessage',
+    blurb: '仅支持 macOS 系统',
+    logo: IMessageLogo,
+    fields: [],
+    disabled: true,
+    disabledReason: '仅限 macOS',
+  },
+]
 
-      <div className="channel-list">
-        <div className="channel-item">
-          <span className="channel-name">网页聊天</span>
-          <span className="channel-status channel-enabled">已启用</span>
-        </div>
-        <div className="channel-item">
-          <span className="channel-name">微信</span>
-          <span className="channel-status channel-coming">即将推出</span>
-        </div>
-        <div className="channel-item">
-          <span className="channel-name">Telegram</span>
-          <span className="channel-status channel-coming">即将推出</span>
-        </div>
+interface ChannelSetupProps {
+  channels?: Record<string, Record<string, string>>
+  onBack: () => void
+  onNext: (channels: Record<string, Record<string, string>>) => void
+}
+
+export function ChannelSetup({ channels: initialChannels, onBack, onNext }: ChannelSetupProps) {
+  const [configs, setConfigs] = useState<Record<string, Record<string, string>>>(
+    () => initialChannels ?? {}
+  )
+  // 当前打开配置对话框的渠道 ID
+  const [editingChannel, setEditingChannel] = useState<string | null>(null)
+  // 对话框中的临时表单值
+  const [dialogFields, setDialogFields] = useState<Record<string, string>>({})
+
+  const isEnabled = (id: string) => id in configs
+
+  const handleCardClick = useCallback((ch: ChannelDef) => {
+    if (ch.disabled) return
+
+    if (isEnabled(ch.id)) {
+      // 已启用 → 关闭
+      setConfigs((prev) => {
+        const next = { ...prev }
+        delete next[ch.id]
+        return next
+      })
+    } else if (ch.fields.length > 0) {
+      // 有配置字段 → 打开对话框
+      setDialogFields(configs[ch.id] ?? {})
+      setEditingChannel(ch.id)
+    } else {
+      // 无配置字段 → 直接启用
+      setConfigs((prev) => ({ ...prev, [ch.id]: {} }))
+    }
+  }, [configs])
+
+  const handleDialogSave = useCallback(() => {
+    if (!editingChannel) return
+    setConfigs((prev) => ({ ...prev, [editingChannel]: { ...dialogFields } }))
+    setEditingChannel(null)
+    setDialogFields({})
+  }, [editingChannel, dialogFields])
+
+  const handleDialogCancel = useCallback(() => {
+    setEditingChannel(null)
+    setDialogFields({})
+  }, [])
+
+  const handleNext = useCallback(() => {
+    onNext(configs)
+  }, [configs, onNext])
+
+  const handleSkip = useCallback(() => {
+    onNext({})
+  }, [onNext])
+
+  const editingDef = editingChannel ? CHANNELS.find((c) => c.id === editingChannel) : null
+
+  return (
+    <div className="setup-page channel-setup">
+      <h2 className="setup-title">消息渠道</h2>
+      <p className="setup-subtitle">可选：配置 AI 的消息平台集成</p>
+
+      <div className="channel-grid">
+        {CHANNELS.map((ch, idx) => {
+          const active = isEnabled(ch.id)
+          const isDisabled = !!ch.disabled
+          return (
+            <div
+              key={ch.id}
+              className={`channel-card${active ? ' channel-card-active' : ''}${isDisabled ? ' channel-card-disabled' : ''}`}
+              onClick={() => handleCardClick(ch)}
+              style={{ animationDelay: `${idx * 0.04}s` }}
+            >
+              <div className="channel-card-header">
+                <span className="channel-icon"><ch.logo /></span>
+                <div className="channel-info">
+                  <span className="channel-name">{ch.label}</span>
+                  <span className="channel-blurb">{ch.blurb}</span>
+                </div>
+                {isDisabled ? (
+                  <span className="channel-badge-disabled">{ch.disabledReason}</span>
+                ) : (
+                  <div className={`channel-toggle${active ? ' channel-toggle-on' : ''}`}>
+                    <div className="channel-toggle-thumb" />
+                  </div>
+                )}
+              </div>
+
+              {active && ch.fields.length > 0 && (
+                <div className="channel-card-configured">
+                  {ch.fields.map((f) => {
+                    const val = configs[ch.id]?.[f.key]
+                    return (
+                      <span key={f.key} className="channel-configured-tag">
+                        {f.label}: {val ? '已配置' : '未填写'}
+                      </span>
+                    )
+                  })}
+                  <button
+                    className="channel-edit-btn"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setDialogFields(configs[ch.id] ?? {})
+                      setEditingChannel(ch.id)
+                    }}
+                  >
+                    编辑
+                  </button>
+                </div>
+              )}
+
+              {active && ch.fields.length === 0 && !isDisabled && (
+                <div className="channel-card-configured">
+                  <span className="channel-no-config">启用后将在运行时自动配置</span>
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
 
       <div className="setup-actions">
         <button className="btn-secondary" onClick={onBack}>上一步</button>
-        <button className="btn-secondary" onClick={onSkip}>跳过</button>
-        <button className="btn-primary" onClick={onNext}>下一步</button>
+        <button className="btn-secondary" onClick={handleSkip}>跳过</button>
+        <button className="btn-primary" onClick={handleNext}>下一步</button>
       </div>
+
+      {/* 配置对话框 */}
+      {editingDef && (
+        <div className="channel-dialog-overlay" onClick={handleDialogCancel}>
+          <div className="channel-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="channel-dialog-header">
+              <span className="channel-icon"><editingDef.logo /></span>
+              <h3>{editingDef.label} 配置</h3>
+            </div>
+            <div className="channel-dialog-body">
+              {editingDef.fields.map((f) => (
+                <div key={f.key} className="channel-dialog-field">
+                  <label className="channel-field-label">
+                    {f.label}
+                    {f.required && <span className="channel-field-required"> *</span>}
+                  </label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder={f.placeholder}
+                    value={dialogFields[f.key] ?? ''}
+                    onChange={(e) => setDialogFields((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="channel-dialog-actions">
+              <button className="btn-secondary" onClick={handleDialogCancel}>取消</button>
+              <button className="btn-primary" onClick={handleDialogSave}>确认</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

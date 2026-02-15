@@ -19,7 +19,7 @@ export function useGateway(): UseGatewayReturn {
 
   useEffect(() => {
     // Get initial status
-    window.electronAPI.gateway.getStatus().then((status) => {
+    window.electronAPI.gateway.getStatus().then((status: { state: GatewayState; port: number }) => {
       setState(status.state)
       setPort(status.port)
     })
@@ -29,7 +29,7 @@ export function useGateway(): UseGatewayReturn {
     window.electronAPI.gateway.getPort().then(setPort)
 
     // Listen for state changes
-    const unsubState = window.electronAPI.gateway.onStateChanged((newState) => {
+    const unsubState = window.electronAPI.gateway.onStateChanged((newState: GatewayState) => {
       setState(newState)
       // Re-fetch token and port when gateway becomes ready (e.g. after setup wizard)
       if (newState === 'ready') {
@@ -39,7 +39,7 @@ export function useGateway(): UseGatewayReturn {
     })
 
     // Listen for logs
-    const unsubLog = window.electronAPI.gateway.onLog((log) => {
+    const unsubLog = window.electronAPI.gateway.onLog((log: GatewayLog) => {
       setLogs((prev) => [...prev.slice(-200), log])
     })
 

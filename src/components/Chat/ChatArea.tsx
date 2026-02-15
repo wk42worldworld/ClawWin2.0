@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react'
+import openclawLogo from '../../../assets/icon.png'
 import { MessageBubble } from './MessageBubble'
 import { InputArea } from './InputArea'
 import type { ChatMessage } from '../../types'
@@ -9,6 +10,7 @@ interface ChatAreaProps {
   disabled?: boolean
   gatewayState: string
   isWaiting?: boolean
+  gatewayPort?: number
 }
 
 export const ChatArea: React.FC<ChatAreaProps> = ({
@@ -17,6 +19,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   disabled = false,
   gatewayState,
   isWaiting = false,
+  gatewayPort = 39527,
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [autoScroll, setAutoScroll] = useState(true)
@@ -42,17 +45,23 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
   return (
     <div className="chat-area">
+      <div className="chat-header">
+        <div className="chat-header-left" />
+        <button
+          className="chat-header-badge"
+          onClick={() => window.electronAPI.shell.openExternal(`http://127.0.0.1:${gatewayPort}`)}
+          title="打开 OpenClaw WebUI"
+        >
+          WebUI
+        </button>
+      </div>
       <div className="chat-messages" ref={scrollRef} onScroll={handleScroll}>
         {messages.length === 0 ? (
           <div className="chat-empty">
             <div className="chat-empty-content">
               <div className="chat-empty-icon">
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
+                <span style={{fontSize: '60px', fontWeight: 900, color: '#323232'}}>?</span>
               </div>
-              <h3>ClawWin</h3>
-              <p>你的 AI 助手，随时准备为您服务</p>
             </div>
           </div>
         ) : (
@@ -67,7 +76,9 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             {isWaiting && (
               <div className="message-bubble message-assistant message-bubble-waiting">
                 <div className="message-avatar">
-                  <div className="avatar avatar-assistant">AI</div>
+                  <div className="avatar avatar-assistant">
+                    <img src={openclawLogo} alt="AI" style={{ width: 20, height: 20, objectFit: 'contain' }} />
+                  </div>
                 </div>
                 <div className="message-body">
                   <div className="message-content">
@@ -86,17 +97,17 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
       {!isReady && (
         <div className="chat-status-bar">
-          {gatewayState === 'starting' && '正在启动 Gateway...'}
-          {gatewayState === 'error' && 'Gateway 连接错误，正在尝试重连...'}
-          {gatewayState === 'stopped' && 'Gateway 已停止'}
-          {gatewayState === 'restarting' && '正在重启 Gateway...'}
+          {gatewayState === 'starting' && '正在启动网关服务...'}
+          {gatewayState === 'error' && '网关连接错误，正在尝试重连...'}
+          {gatewayState === 'stopped' && '网关服务已停止'}
+          {gatewayState === 'restarting' && '正在重启网关服务...'}
         </div>
       )}
 
       <InputArea
         onSend={onSend}
         disabled={disabled || !isReady}
-        placeholder={isReady ? '输入消息... (Enter 发送, Shift+Enter 换行)' : '等待 Gateway 就绪...'}
+        placeholder={isReady ? '输入消息...' : '等待网关服务就绪...'}
       />
     </div>
   )

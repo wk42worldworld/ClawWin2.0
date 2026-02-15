@@ -8,6 +8,7 @@ interface ApiKeyInputProps {
   modelId: string
   onBack: () => void
   onNext: (apiKey: string) => void
+  onSkip?: () => void
 }
 
 const HELP_URLS: Record<string, string> = {
@@ -28,6 +29,7 @@ export const ApiKeyInput: React.FC<ApiKeyInputProps> = ({
   modelId,
   onBack,
   onNext,
+  onSkip,
 }) => {
   const [apiKey, setApiKey] = useState('')
   const [testing, setTesting] = useState(false)
@@ -116,6 +118,7 @@ export const ApiKeyInput: React.FC<ApiKeyInputProps> = ({
 
       <div className="setup-actions">
         <button className="btn-secondary" onClick={onBack}>上一步</button>
+        {onSkip && <button className="btn-secondary" onClick={onSkip}>跳过</button>}
         <button
           className="btn-primary"
           onClick={handleNext}

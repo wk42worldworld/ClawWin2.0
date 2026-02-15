@@ -8,6 +8,7 @@ interface ModelSelectProps {
   onSelect: (provider: ModelProvider, model: ModelInfo) => void
   onBack: () => void
   onNext: () => void
+  onSkip?: () => void
 }
 
 export const ModelSelect: React.FC<ModelSelectProps> = ({
@@ -17,6 +18,7 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({
   onSelect,
   onBack,
   onNext,
+  onSkip,
 }) => {
   const [customUrl, setCustomUrl] = useState('')
 
@@ -36,8 +38,8 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({
       <p className="setup-subtitle">选择一个 AI 服务提供商和模型</p>
 
       <div className="provider-list">
-        {providers.map((provider) => (
-          <div key={provider.id} className="provider-card">
+        {providers.map((provider, idx) => (
+          <div key={provider.id} className="provider-card" style={{ animationDelay: `${idx * 0.06}s` }}>
             <div className="provider-header">
               <span className="provider-name">{provider.name}</span>
               {PROVIDER_TAGS[provider.id] && (
@@ -47,13 +49,14 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({
               )}
             </div>
             <div className="model-list">
-              {provider.models.map((model) => (
+              {provider.models.map((model, idx) => (
                 <div
                   key={model.id}
-                  className={`model-item ${
+                  className={`model-item model-item-animated ${
                     selectedProvider === provider.id && selectedModel === model.id ? 'selected' : ''
                   }`}
                   onClick={() => onSelect(provider, model)}
+                  style={{ animationDelay: `${idx * 0.03}s` }}
                 >
                   <div className="model-name">{model.name}</div>
                   <div className="model-meta">
@@ -86,6 +89,7 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({
 
       <div className="setup-actions">
         <button className="btn-secondary" onClick={onBack}>上一步</button>
+        {onSkip && <button className="btn-secondary" onClick={onSkip}>跳过</button>}
         <button
           className="btn-primary"
           onClick={onNext}

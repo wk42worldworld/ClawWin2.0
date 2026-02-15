@@ -62,6 +62,7 @@ export interface SetupConfig {
   workspace?: string
   gatewayPort?: number
   gatewayToken?: string
+  channels?: Record<string, Record<string, string>>
 }
 
 /**
@@ -186,6 +187,10 @@ export function writeSetupConfig(config: Record<string, unknown>): { ok: boolean
           },
         },
       },
+      // Channel integrations (if any configured during setup)
+      ...(setup.channels && Object.keys(setup.channels).length > 0
+        ? { channels: setup.channels }
+        : {}),
     }
 
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(openclawConfig, null, 2), 'utf-8')

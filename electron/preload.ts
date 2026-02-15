@@ -68,6 +68,7 @@ const electronAPI = {
   // Shell
   shell: {
     openExternal: (url: string): Promise<void> => ipcRenderer.invoke('shell:openExternal', url),
+    openPath: (folderPath: string): Promise<void> => ipcRenderer.invoke('shell:openPath', folderPath),
   },
 
   // App

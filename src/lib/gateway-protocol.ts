@@ -70,7 +70,6 @@ export class GatewayClient {
   private ws: WebSocket | null = null
   private pending = new Map<string, Pending>()
   private closed = false
-  private lastSeq: number | null = null
   private backoffMs = 800
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
   // challenge/connect 握手状态
@@ -251,7 +250,8 @@ export class GatewayClient {
 
       const seq = typeof evt.seq === 'number' ? evt.seq : null
       if (seq !== null) {
-        this.lastSeq = seq
+        // Track sequence for potential reconnect/resume (reserved for future use)
+        void seq
       }
 
       try {
