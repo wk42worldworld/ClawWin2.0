@@ -152,9 +152,11 @@ body {
 
 .sidebar-header {
   padding: 32px 24px;
+  padding-top: 44px;
   display: flex;
   align-items: baseline;
   gap: 6px;
+  -webkit-app-region: drag;
 }
 
 .app-title {
@@ -343,6 +345,14 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.main-content::before {
+  content: '';
+  display: block;
+  height: 36px;
+  min-height: 36px;
+  -webkit-app-region: drag;
 }
 
 .chat-area {

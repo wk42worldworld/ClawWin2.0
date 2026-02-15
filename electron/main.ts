@@ -23,6 +23,12 @@ function createWindow() {
     minHeight: 600,
     title: 'ClawWin',
     icon: path.join(__dirname, '../assets/icon.ico'),
+    titleBarStyle: 'hidden',
+    titleBarOverlay: {
+      color: '#0a0a0f',
+      symbolColor: '#94a3b8',
+      height: 36,
+    },
     webPreferences: {
       preload: PRELOAD,
       contextIsolation: true,
