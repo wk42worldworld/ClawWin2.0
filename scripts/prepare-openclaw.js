@@ -219,6 +219,10 @@ async function main() {
   const totalSize = getDirSize(TARGET_DIR)
   console.log(`\nopenclaw 安装目录大小: ${(totalSize / 1024 / 1024).toFixed(1)} MB`)
   console.log('openclaw 准备完成!')
+
+  // 自动应用 gateway 修补
+  console.log('\n')
+  require('./patch-openclaw')
 }
 
 main().catch((err) => {

@@ -13,6 +13,7 @@
     "preview": "vite preview",
     "prepare:node": "node scripts/prepare-node.js",
     "prepare:openclaw": "node scripts/prepare-openclaw.js",
+    "patch:openclaw": "node scripts/patch-openclaw.js",
     "build:installer": "node scripts/build-installer.js",
     "electron:dev": "npm run build:electron && electron .",
     "typecheck": "tsc --noEmit"
