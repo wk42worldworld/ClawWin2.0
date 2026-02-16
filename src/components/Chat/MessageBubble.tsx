@@ -1,5 +1,4 @@
 import React from 'react'
-import openclawLogo from '../../../assets/icon.png'
 import type { ChatMessage } from '../../types'
 
 interface MessageBubbleProps {
@@ -15,15 +14,6 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onCopy, o
 
   return (
     <div className={`message-bubble ${isUser ? 'message-user' : 'message-assistant'} ${isStreaming ? 'message-bubble-streaming' : ''} ${isError ? 'message-error-bubble' : ''}`}>
-      <div className="message-avatar">
-        {isUser ? (
-          <div className="avatar avatar-user"><b>P1</b></div>
-        ) : (
-          <div className="avatar avatar-assistant">
-            <img src={openclawLogo} alt="AI" style={{ width: 20, height: 20, objectFit: 'contain' }} />
-          </div>
-        )}
-      </div>
       <div className="message-body">
         <div className={`message-content ${isStreaming ? 'message-streaming' : ''} ${isError ? 'message-error-content' : ''}`}>
           {message.content || (isStreaming ? '...' : '')}

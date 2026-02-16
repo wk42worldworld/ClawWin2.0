@@ -22,13 +22,20 @@ function generateId(): string {
 
 /**
  * 从 Gateway chat event payload 中提取文本内容
- * content 可能是 string 或 [{type:"text", text:"..."}] 格式
+ * content 可能是 string、{content: string}、{content: [{type:"text", text:"..."}]} 等格式
  */
 function extractText(message: unknown): string {
+  // 直接是字符串
+  if (typeof message === 'string') return message
   if (!message || typeof message !== 'object') return ''
+
   const msg = message as Record<string, unknown>
   const content = msg.content
+
+  // content 是字符串
   if (typeof content === 'string') return content
+
+  // content 是数组 [{type: "text", text: "..."}, ...]
   if (Array.isArray(content)) {
     return content
       .map((block: unknown) => {
@@ -40,6 +47,10 @@ function extractText(message: unknown): string {
       })
       .join('')
   }
+
+  // 备用：直接使用 text 字段
+  if (typeof msg.text === 'string') return msg.text
+
   return ''
 }
 
@@ -54,18 +65,22 @@ export function useWebSocket({ url, token, enabled }: UseWebSocketOptions): UseW
   useEffect(() => {
     if (!enabled || !url) return
 
+    console.log('[ws] creating GatewayClient:', { url, hasToken: !!token })
+
     const client = new GatewayClient({
       url,
       token,
-      signDeviceAuth: (window as any).electronAPI?.gateway?.signDeviceAuth,
+      signDeviceAuth: window.electronAPI?.gateway?.signDeviceAuth,
       onHello: (h) => {
+        console.log('[ws] handshake completed (hello-ok received)')
         setConnected(true)
         setHello(h)
       },
       onEvent: (evt: GatewayEventFrame) => {
         handleEvent(evt)
       },
-      onClose: () => {
+      onClose: (info) => {
+        console.log('[ws] connection closed:', info.code, info.reason)
         setConnected(false)
       },
       onError: (err) => {
@@ -84,7 +99,6 @@ export function useWebSocket({ url, token, enabled }: UseWebSocketOptions): UseW
   }, [url, token, enabled])
 
   const handleEvent = useCallback((evt: GatewayEventFrame) => {
-    // DEBUG: 打印所有收到的 Gateway 事件
     console.log('[ws] event received:', evt.event, evt.event === 'chat' ? JSON.stringify(evt.payload).slice(0, 500) : '')
 
     // OpenClaw Gateway 用 "chat" 事件名传递聊天消息
@@ -95,15 +109,12 @@ export function useWebSocket({ url, token, enabled }: UseWebSocketOptions): UseW
     const state = payload.state as string | undefined
     const runId = (payload.runId as string) || generateId()
 
-    // DEBUG: 打印 chat 事件详情
-    console.log('[ws] chat event:', { state, runId, hasMessage: !!payload.message, message: payload.message })
+    console.log('[ws] chat event:', { state, runId, hasMessage: !!payload.message })
 
     if (state === 'delta') {
       // 流式增量更新
       const text = extractText(payload.message)
-      console.log('[ws] delta text:', JSON.stringify(text?.slice(0, 200)))
       if (text) {
-        // 累积文本（Gateway 可能发送完整累积内容或增量）
         streamBufferRef.current.set(runId, text)
 
         const msg: ChatMessage = {
@@ -120,7 +131,6 @@ export function useWebSocket({ url, token, enabled }: UseWebSocketOptions): UseW
       const extractedText = extractText(payload.message)
       const bufferedText = streamBufferRef.current.get(runId)
       const text = extractedText || bufferedText || ''
-      console.log('[ws] final:', { extractedText: JSON.stringify(extractedText?.slice(0, 200)), bufferedText: JSON.stringify(bufferedText?.slice(0, 200)), finalText: JSON.stringify(text?.slice(0, 200)) })
       streamBufferRef.current.delete(runId)
 
       const msg: ChatMessage = {
@@ -161,13 +171,24 @@ export function useWebSocket({ url, token, enabled }: UseWebSocketOptions): UseW
 
   const sendMessage = useCallback((sessionKey: string, content: string) => {
     const client = clientRef.current
-    if (!client?.connected) {
-      console.error('[ws] cannot send: not connected')
+    if (!client) {
+      console.error('[ws] cannot send: no client instance')
+      const msg: ChatMessage = {
+        id: generateId(),
+        role: 'assistant',
+        content: '无法发送消息：WebSocket 客户端未初始化，请检查网关状态',
+        timestamp: Date.now(),
+        status: 'error',
+      }
+      onMessageStream.current?.(msg)
       return
     }
 
     const idempotencyKey = generateId()
 
+    // GatewayClient.request 会自动处理：
+    // - 握手完成前的请求会被缓冲，握手完成后自动发送
+    // - WebSocket 未连接时会 reject
     client.request('chat.send', {
       sessionKey,
       message: content,
@@ -175,7 +196,6 @@ export function useWebSocket({ url, token, enabled }: UseWebSocketOptions): UseW
       idempotencyKey,
     }).catch((err) => {
       console.error('[ws] chat.send failed:', err)
-      // 通知 UI 发送失败
       const msg: ChatMessage = {
         id: idempotencyKey,
         role: 'assistant',

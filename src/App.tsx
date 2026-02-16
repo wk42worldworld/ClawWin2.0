@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import openclawLogo from '../assets/icon.png'
+import { OpenClawLogo } from './components/Common/OpenClawLogo'
 import { ChatArea } from './components/Chat/ChatArea'
 import { SessionList } from './components/Sidebar/SessionList'
 import { WelcomePage } from './components/Setup/WelcomePage'
@@ -36,6 +36,10 @@ function App() {
   const [showSkills, setShowSkills] = useState(false)
   const waitingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // 使用 ref 追踪最新的 activeSessionId，避免回调闭包中拿到旧值
+  const activeSessionIdRef = useRef<string | null>(null)
+  activeSessionIdRef.current = activeSessionId
+
   // 超时处理：30 秒无响应自动取消等待并提示错误
   const startWaiting = useCallback(() => {
     setIsWaiting(true)
@@ -44,7 +48,7 @@ function App() {
       setIsWaiting(false)
       // 添加一条超时错误消息
       setSessions((prev) => {
-        const sid = activeSessionId
+        const sid = activeSessionIdRef.current
         if (!sid) return prev
         return prev.map((s) => {
           if (s.id !== sid) return s
@@ -59,7 +63,7 @@ function App() {
         })
       })
     }, 30000)
-  }, [activeSessionId])
+  }, [])
 
   const stopWaiting = useCallback(() => {
     setIsWaiting(false)
@@ -90,8 +94,10 @@ function App() {
 
   ws.onMessageStream.current = useCallback(
     (msg: ChatMessage) => {
-      console.log('[app] onMessageStream called:', { activeSessionId, msgId: msg.id, content: msg.content?.slice(0, 100), status: msg.status })
-      if (!activeSessionId) {
+      // 使用 ref 获取最新的 activeSessionId，避免闭包捕获旧值的竞态问题
+      const sid = activeSessionIdRef.current
+      console.log('[app] onMessageStream called:', { sid, msgId: msg.id, content: msg.content?.slice(0, 100), status: msg.status })
+      if (!sid) {
         console.warn('[app] DROPPED message: activeSessionId is null!', msg.id)
         return
       }
@@ -101,7 +107,7 @@ function App() {
 
       setSessions((prev) =>
         prev.map((s) => {
-          if (s.id !== activeSessionId) return s
+          if (s.id !== sid) return s
           const existingIdx = s.messages.findIndex((m) => m.id === msg.id)
           if (existingIdx >= 0) {
             const updated = [...s.messages]
@@ -116,7 +122,7 @@ function App() {
         })
       )
     },
-    [activeSessionId]
+    [] // 不再依赖 activeSessionId，通过 ref 获取最新值
   )
 
   // Get active session
@@ -165,6 +171,8 @@ function App() {
         }
         session.messages.push(userMsg)
         setSessions((prev) => [session, ...prev])
+        // 立即同步更新 ref，确保 gateway 响应到达时回调能拿到正确的 sessionId
+        activeSessionIdRef.current = session.id
         setActiveSessionId(session.id)
         startWaiting()
         // 每个前端会话用自己的 id 作为 Gateway sessionKey，避免历史污染
@@ -358,7 +366,7 @@ function App() {
         <div className="navbar">
           <div className="navbar-logo">
             <div className="navbar-logo-circle">
-              <img src={openclawLogo} alt="OpenClaw" className="navbar-logo-img" />
+              <OpenClawLogo size={28} />
             </div>
             <div className="navbar-brand">
               <span className="navbar-brand-name">ClawWin</span>

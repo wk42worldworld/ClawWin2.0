@@ -1,5 +1,4 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react'
-import openclawLogo from '../../../assets/icon.png'
 import { MessageBubble } from './MessageBubble'
 import { InputArea } from './InputArea'
 import type { ChatMessage } from '../../types'
@@ -75,11 +74,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             ))}
             {isWaiting && (
               <div className="message-bubble message-assistant message-bubble-waiting">
-                <div className="message-avatar">
-                  <div className="avatar avatar-assistant">
-                    <img src={openclawLogo} alt="AI" style={{ width: 20, height: 20, objectFit: 'contain' }} />
-                  </div>
-                </div>
                 <div className="message-body">
                   <div className="message-content">
                     <div className="typing-dots">

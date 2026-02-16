@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, shell, globalShortcut } from 'electron'
 import path from 'node:path'
 import os from 'node:os'
 import fs from 'node:fs'
@@ -13,6 +13,14 @@ let gatewayManager: GatewayManager | null = null
 const DIST = path.join(__dirname, '../dist')
 const PRELOAD = path.join(__dirname, 'preload.js')
 
+// Icon path: in packaged app, assets are in resources/; in dev, relative to dist-electron/
+function getIconPath(): string {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, 'assets', 'icon.ico')
+  }
+  return path.join(__dirname, '../assets/icon.ico')
+}
+
 function createWindow() {
   Menu.setApplicationMenu(null)
 
@@ -22,7 +30,7 @@ function createWindow() {
     minWidth: 1100,
     minHeight: 780,
     title: 'ClawWin',
-    icon: path.join(__dirname, '../assets/icon.ico'),
+    icon: getIconPath(),
     titleBarStyle: 'hidden',
     titleBarOverlay: {
       color: '#2D2D2D',
@@ -39,6 +47,28 @@ function createWindow() {
   })
 
   mainWindow.once('ready-to-show', () => {
+    mainWindow?.show()
+  })
+
+  // 注册 DevTools 快捷键（Ctrl+Shift+I 和 F12）
+  mainWindow.webContents.on('before-input-event', (_event, input) => {
+    if (
+      (input.control && input.shift && input.key.toLowerCase() === 'i') ||
+      input.key === 'F12'
+    ) {
+      mainWindow?.webContents.toggleDevTools()
+    }
+  })
+
+  // Fallback: show window after timeout even if ready-to-show hasn't fired
+  setTimeout(() => {
+    if (mainWindow && !mainWindow.isVisible()) {
+      mainWindow.show()
+    }
+  }, 5000)
+
+  // Show window on load failure
+  mainWindow.webContents.on('did-fail-load', () => {
     mainWindow?.show()
   })
 

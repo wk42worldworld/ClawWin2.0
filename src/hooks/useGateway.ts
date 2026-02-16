@@ -18,24 +18,30 @@ export function useGateway(): UseGatewayReturn {
   const [token, setToken] = useState<string | null>(null)
 
   useEffect(() => {
-    // Get initial status
-    window.electronAPI.gateway.getStatus().then((status: { state: GatewayState; port: number }) => {
+    // 并行获取初始状态、token 和端口
+    Promise.all([
+      window.electronAPI.gateway.getStatus(),
+      window.electronAPI.gateway.getToken(),
+      window.electronAPI.gateway.getPort(),
+    ]).then(([status, initialToken, initialPort]) => {
       setState(status.state)
-      setPort(status.port)
+      setPort(initialPort || status.port)
+      setToken(initialToken)
     })
 
-    // Get token
-    window.electronAPI.gateway.getToken().then(setToken)
-    window.electronAPI.gateway.getPort().then(setPort)
-
     // Listen for state changes
-    const unsubState = window.electronAPI.gateway.onStateChanged((newState: GatewayState) => {
-      setState(newState)
-      // Re-fetch token and port when gateway becomes ready (e.g. after setup wizard)
+    const unsubState = window.electronAPI.gateway.onStateChanged(async (newState: GatewayState) => {
+      // 当 gateway 变为 ready 时，先获取 token 再更新状态
+      // 确保 token 在 state 变化之前就已就绪，避免 WebSocket 在没有 token 时连接
       if (newState === 'ready') {
-        window.electronAPI.gateway.getToken().then(setToken)
-        window.electronAPI.gateway.getPort().then(setPort)
+        const [freshToken, freshPort] = await Promise.all([
+          window.electronAPI.gateway.getToken(),
+          window.electronAPI.gateway.getPort(),
+        ])
+        setToken(freshToken)
+        setPort(freshPort)
       }
+      setState(newState)
     })
 
     // Listen for logs

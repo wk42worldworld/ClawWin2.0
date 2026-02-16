@@ -6,6 +6,9 @@ import crypto from 'node:crypto'
 const OPENCLAW_HOME = path.join(os.homedir(), '.openclaw')
 const CONFIG_FILE = path.join(OPENCLAW_HOME, 'openclaw.json')
 const AUTH_PROFILES_FILE = path.join(OPENCLAW_HOME, 'auth-profiles.json')
+// OpenClaw 的 agent 实际从此目录加载 auth-profiles，而非全局目录
+const AGENT_DIR = path.join(OPENCLAW_HOME, 'agents', 'main', 'agent')
+const AGENT_AUTH_PROFILES_FILE = path.join(AGENT_DIR, 'auth-profiles.json')
 
 /**
  * 获取 openclaw 配置文件路径
@@ -144,7 +147,8 @@ export function writeSetupConfig(config: Record<string, unknown>): { ok: boolean
           token: gatewayToken,
         },
         controlUi: {
-          allowedOrigins: ['*'],
+          dangerouslyDisableDeviceAuth: true,
+          allowInsecureAuth: true,
         },
       },
       auth: {
@@ -196,15 +200,24 @@ export function writeSetupConfig(config: Record<string, unknown>): { ok: boolean
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(openclawConfig, null, 2), 'utf-8')
 
     // ===== 2. Write auth-profiles.json =====
+    // OpenClaw 的 coerceAuthStore 要求每个 profile 必须包含 provider、type 字段，
+    // 且 API Key 的字段名为 "key"（不是 "apiKey"）
     if (setup.apiKey) {
       const authProfiles = {
         profiles: {
           [`${setup.provider}:default`]: {
-            apiKey: setup.apiKey,
+            provider: setup.provider,
+            type: 'api_key',
+            key: setup.apiKey,
           },
         },
       }
-      fs.writeFileSync(AUTH_PROFILES_FILE, JSON.stringify(authProfiles, null, 2), 'utf-8')
+      const authJson = JSON.stringify(authProfiles, null, 2)
+      fs.writeFileSync(AUTH_PROFILES_FILE, authJson, 'utf-8')
+      // OpenClaw agent 实际从 agents/main/agent/ 目录加载 auth-profiles，
+      // 必须同时写入此处，否则 agent 找不到 API key
+      ensureDir(AGENT_DIR)
+      fs.writeFileSync(AGENT_AUTH_PROFILES_FILE, authJson, 'utf-8')
     }
 
     // ===== 3. Create workspace directory and seed files =====

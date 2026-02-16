@@ -1,5 +1,5 @@
 import React from 'react'
-import openclawLogo from '../../../assets/icon.png'
+import { OpenClawLogo } from '../Common/OpenClawLogo'
 
 interface WelcomePageProps {
   onNext: () => void
@@ -10,7 +10,7 @@ export const WelcomePage: React.FC<WelcomePageProps> = ({ onNext }) => {
     <div className="setup-page welcome-page">
       <div className="setup-logo">
         <div className="navbar-logo-circle" style={{ width: 80, height: 80 }}>
-          <img src={openclawLogo} alt="OpenClaw" className="navbar-logo-img" style={{ width: 56, height: 56 }} />
+          <OpenClawLogo size={56} />
         </div>
       </div>
       <h1 className="setup-title">欢迎使用 OpenClaw</h1>

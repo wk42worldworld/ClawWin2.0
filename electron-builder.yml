@@ -10,8 +10,12 @@ files:
   - dist-electron/**/*
 
 extraResources:
-  - from: bundled/
-    to: bundled/
+  - from: bundled/node/
+    to: bundled/node/
+    filter:
+      - "**/*"
+  - from: bundled/openclaw/
+    to: bundled/openclaw/
     filter:
       - "**/*"
 

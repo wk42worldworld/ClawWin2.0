@@ -76,11 +76,15 @@ export class GatewayClient {
   private connectNonce: string | null = null
   private connectSent = false
   private connectTimer: ReturnType<typeof setTimeout> | null = null
+  // 握手完成标志（connect 请求收到 hello-ok 后为 true）
+  private _handshakeCompleted = false
+  // 握手完成前缓冲的请求
+  private _pendingQueue: Array<{ method: string; params?: unknown; resolve: (v: unknown) => void; reject: (e: unknown) => void }> = []
 
   constructor(private opts: GatewayClientOptions) {}
 
   get connected(): boolean {
-    return this.ws?.readyState === WebSocket.OPEN
+    return this.ws?.readyState === WebSocket.OPEN && this._handshakeCompleted
   }
 
   start() {
@@ -90,6 +94,7 @@ export class GatewayClient {
 
   stop() {
     this.closed = true
+    this._handshakeCompleted = false
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer)
       this.reconnectTimer = null
@@ -100,11 +105,14 @@ export class GatewayClient {
     }
     this.ws?.close()
     this.ws = null
-    this.flushPending(new Error('client stopped'))
+    const err = new Error('client stopped')
+    this.flushPending(err)
+    this.flushQueue(err)
   }
 
   private doConnect() {
     if (this.closed) return
+    this._handshakeCompleted = false
 
     try {
       this.ws = new WebSocket(this.opts.url)
@@ -126,7 +134,10 @@ export class GatewayClient {
 
     this.ws.addEventListener('close', (ev) => {
       this.ws = null
-      this.flushPending(new Error(`closed (${ev.code}): ${ev.reason}`))
+      this._handshakeCompleted = false
+      const err = new Error(`closed (${ev.code}): ${ev.reason}`)
+      this.flushPending(err)
+      this.flushQueue(err)
       this.opts.onClose?.({ code: ev.code, reason: ev.reason })
       this.scheduleReconnect()
     })
@@ -166,6 +177,20 @@ export class GatewayClient {
     this.pending.clear()
   }
 
+  private flushQueue(err: Error) {
+    for (const q of this._pendingQueue) {
+      q.reject(err)
+    }
+    this._pendingQueue = []
+  }
+
+  private drainQueue() {
+    const queued = this._pendingQueue.splice(0)
+    for (const q of queued) {
+      this.request(q.method, q.params).then(q.resolve, q.reject)
+    }
+  }
+
   private async sendConnect() {
     if (this.connectSent) return
     this.connectSent = true
@@ -174,8 +199,14 @@ export class GatewayClient {
       this.connectTimer = null
     }
 
-    const clientId = this.opts.clientId ?? 'webchat-ui'
-    const clientMode = 'webchat'
+    // 使用 cli 身份：
+    // - 跳过 Gateway 的 Origin 检查（仅 webchat/control-ui 身份会检查 Origin）
+    // - Electron file:// 协议的 Origin 为 "null"，webchat/control-ui 身份会被拒
+    // 同时提供 device auth：
+    // - 有 device auth 才能获得 scopes（operator.write 等）
+    // - chat.send 需要 operator.write scope
+    const clientId = this.opts.clientId ?? 'cli'
+    const clientMode = 'cli'
     const role = 'operator'
     const scopes = ['operator.admin', 'operator.write']
 
@@ -216,9 +247,14 @@ export class GatewayClient {
     this.request<GatewayHelloOk>('connect', params)
       .then((hello) => {
         this.backoffMs = 800
+        this._handshakeCompleted = true
         this.opts.onHello?.(hello)
+        // 握手完成后，发送缓冲队列中的所有请求
+        this.drainQueue()
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('[gateway] connect handshake failed:', err)
+        this._handshakeCompleted = false
         this.ws?.close(4008, 'connect failed')
       })
   }
@@ -276,6 +312,15 @@ export class GatewayClient {
   }
 
   request<T = unknown>(method: string, params?: unknown): Promise<T> {
+    // connect 请求不需要等待握手完成
+    if (method !== 'connect') {
+      // WebSocket 已连接但握手未完成时，将请求加入缓冲队列
+      if (this.ws?.readyState === WebSocket.OPEN && !this._handshakeCompleted) {
+        return new Promise<T>((resolve, reject) => {
+          this._pendingQueue.push({ method, params, resolve: (v) => resolve(v as T), reject })
+        })
+      }
+    }
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       return Promise.reject(new Error('not connected'))
     }
