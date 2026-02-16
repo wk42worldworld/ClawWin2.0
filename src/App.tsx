@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { OpenClawLogo } from './components/Common/OpenClawLogo'
 import { ChatArea } from './components/Chat/ChatArea'
 import { SessionList } from './components/Sidebar/SessionList'
 import { WelcomePage } from './components/Setup/WelcomePage'
@@ -365,9 +364,6 @@ function App() {
       <div className="app-container">
         <div className="navbar">
           <div className="navbar-logo">
-            <div className="navbar-logo-circle">
-              <OpenClawLogo size={28} />
-            </div>
             <div className="navbar-brand">
               <span className="navbar-brand-name">ClawWin</span>
               <div className="navbar-accent-line" />
