@@ -179,6 +179,10 @@ export function writeSetupConfig(config: Record<string, unknown>): { ok: boolean
         },
       },
       skills: {
+        load: {
+          watch: true,
+          watchDebounceMs: 250,
+        },
         install: { nodeManager: 'npm' },
       },
       hooks: {
