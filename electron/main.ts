@@ -171,8 +171,9 @@ function setupIPC() {
     }
   })
 
-  // Open folder in file explorer
+  // Open folder in file explorer (create if not exists)
   ipcMain.handle('shell:openPath', (_event, folderPath: string) => {
+    fs.mkdirSync(folderPath, { recursive: true })
     shell.openPath(folderPath)
   })
 
