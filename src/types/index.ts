@@ -38,11 +38,36 @@ interface ElectronSetup {
   getDefaultWorkspace: () => Promise<string>
 }
 
+interface ElectronConfig {
+  readConfig: () => Promise<Record<string, unknown> | null>
+  getApiKey: (profileId: string) => Promise<string | null>
+  saveModelConfig: (params: {
+    provider: string
+    modelId: string
+    modelName: string
+    baseUrl: string
+    apiFormat: string
+    apiKey: string
+    reasoning?: boolean
+    contextWindow?: number
+    maxTokens?: number
+  }) => Promise<{ ok: boolean; error?: string }>
+  getChannels: () => Promise<Record<string, Record<string, string>>>
+  saveChannels: (channels: Record<string, Record<string, string>>) => Promise<{ ok: boolean; error?: string }>
+  saveWorkspace: (workspace: string) => Promise<{ ok: boolean; error?: string }>
+}
+
+interface ElectronDialog {
+  selectFolder: (defaultPath?: string) => Promise<string | null>
+}
+
 interface ElectronAPI {
   gateway: ElectronGateway
   setup: ElectronSetup
   shell: { openExternal: (url: string) => Promise<void>; openPath: (folderPath: string) => Promise<void> }
   app: { getVersion: () => Promise<string> }
+  config: ElectronConfig
+  dialog: ElectronDialog
 }
 
 declare global {

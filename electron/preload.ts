@@ -75,6 +75,33 @@ const electronAPI = {
   app: {
     getVersion: (): Promise<string> => ipcRenderer.invoke('app:getVersion'),
   },
+
+  // Config
+  config: {
+    readConfig: (): Promise<Record<string, unknown> | null> => ipcRenderer.invoke('config:readConfig'),
+    getApiKey: (profileId: string): Promise<string | null> => ipcRenderer.invoke('config:getApiKey', profileId),
+    saveModelConfig: (params: {
+      provider: string
+      modelId: string
+      modelName: string
+      baseUrl: string
+      apiFormat: string
+      apiKey: string
+      reasoning?: boolean
+      contextWindow?: number
+      maxTokens?: number
+    }): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke('config:saveModelConfig', params),
+    getChannels: (): Promise<Record<string, Record<string, string>>> => ipcRenderer.invoke('config:getChannels'),
+    saveChannels: (channels: Record<string, Record<string, string>>): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke('config:saveChannels', channels),
+    saveWorkspace: (workspace: string): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke('config:saveWorkspace', workspace),
+  },
+
+  // Dialog
+  dialog: {
+    selectFolder: (defaultPath?: string): Promise<string | null> => ipcRenderer.invoke('dialog:selectFolder', defaultPath),
+  },
 }
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI)

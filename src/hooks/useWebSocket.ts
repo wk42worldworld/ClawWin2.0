@@ -14,6 +14,7 @@ interface UseWebSocketReturn {
   sendMessage: (sessionKey: string, content: string) => void
   onMessageStream: React.MutableRefObject<((msg: ChatMessage) => void) | null>
   reconnect: () => void
+  client: GatewayClient | null
 }
 
 function generateId(): string {
@@ -212,5 +213,5 @@ export function useWebSocket({ url, token, enabled }: UseWebSocketOptions): UseW
     clientRef.current?.start()
   }, [])
 
-  return { connected, hello, sendMessage, onMessageStream, reconnect }
+  return { connected, hello, sendMessage, onMessageStream, reconnect, client: clientRef.current }
 }

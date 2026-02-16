@@ -10,6 +10,9 @@ import { ChannelSetup } from './components/Setup/ChannelSetup'
 import { SetupComplete } from './components/Setup/SetupComplete'
 import { ErrorBoundary } from './components/Common/ErrorBoundary'
 import { Loading } from './components/Common/Loading'
+import { ModelSettings } from './components/Settings/ModelSettings'
+import { ChannelSettings } from './components/Settings/ChannelSettings'
+import { CronManager } from './components/Settings/CronManager'
 import { useGateway } from './hooks/useGateway'
 import { useWebSocket } from './hooks/useWebSocket'
 import { useSetup, type SetupStep } from './hooks/useSetup'
@@ -33,6 +36,10 @@ function App() {
   const [isWaiting, setIsWaiting] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showSkills, setShowSkills] = useState(false)
+  const [showModelSettings, setShowModelSettings] = useState(false)
+  const [showChannelSettings, setShowChannelSettings] = useState(false)
+  const [showCronManager, setShowCronManager] = useState(false)
+  const [settingsWorkspace, setSettingsWorkspace] = useState(setup.config.workspace ?? '~/openclaw')
   const waitingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // 使用 ref 追踪最新的 activeSessionId，避免回调闭包中拿到旧值
@@ -373,13 +380,31 @@ function App() {
         <div className="app-main">
           <div className="system-sidebar">
             <div className="system-sidebar-icons">
-              <div className="system-icon-item" style={{animationDelay: '0s'}} onClick={() => setShowSkills(true)}>
+              <div className="system-icon-item" style={{animationDelay: '0s'}} onClick={() => setShowModelSettings(true)}>
+                <div className="system-icon-circle">
+                  <span className="system-icon-emoji">🤖</span>
+                </div>
+                <span className="system-icon-label">大模型</span>
+              </div>
+              <div className="system-icon-item" style={{animationDelay: '0.05s'}} onClick={() => setShowChannelSettings(true)}>
+                <div className="system-icon-circle">
+                  <span className="system-icon-emoji">💬</span>
+                </div>
+                <span className="system-icon-label">聊天工具</span>
+              </div>
+              <div className="system-icon-item" style={{animationDelay: '0.10s'}} onClick={() => setShowCronManager(true)}>
+                <div className="system-icon-circle">
+                  <span className="system-icon-emoji">⏰</span>
+                </div>
+                <span className="system-icon-label">定时任务</span>
+              </div>
+              <div className="system-icon-item" style={{animationDelay: '0.15s'}} onClick={() => setShowSkills(true)}>
                 <div className="system-icon-circle">
                   <span className="system-icon-emoji">🧩</span>
                 </div>
                 <span className="system-icon-label">技能</span>
               </div>
-              <div className="system-icon-item" style={{animationDelay: '0.05s'}} onClick={() => setShowSettings(true)}>
+              <div className="system-icon-item" style={{animationDelay: '0.20s'}} onClick={() => setShowSettings(true)}>
                 <div className="system-icon-circle">
                   <span className="system-icon-emoji">⚙️</span>
                 </div>
@@ -428,7 +453,25 @@ function App() {
             <div className="settings-body">
               <div className="settings-section">
                 <h3>工作区</h3>
-                <p className="settings-value">{setup.config.workspace ?? '~/openclaw'}</p>
+                <div className="settings-workspace-row">
+                  <p className="settings-value settings-workspace-path">{settingsWorkspace}</p>
+                  <button
+                    className="btn-folder-picker"
+                    onClick={async () => {
+                      const selected = await window.electronAPI.dialog.selectFolder(settingsWorkspace || undefined)
+                      if (selected) {
+                        setSettingsWorkspace(selected)
+                        const res = await window.electronAPI.config.saveWorkspace(selected)
+                        if (res.ok) {
+                          setup.updateConfig({ workspace: selected })
+                          await gateway.restart()
+                        }
+                      }
+                    }}
+                  >
+                    选择文件夹
+                  </button>
+                </div>
               </div>
               <div className="settings-section">
                 <h3>模型</h3>
@@ -451,7 +494,7 @@ function App() {
                 )}
               </div>
               <button
-                className="btn-primary settings-reconfig-btn"
+                className="btn-secondary settings-reconfig-btn"
                 onClick={() => {
                   setShowSettings(false)
                   setShowSetup(true)
@@ -504,6 +547,34 @@ function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {showModelSettings && (
+        <ModelSettings
+          currentProvider={setup.config.provider}
+          currentModel={setup.config.modelId}
+          onClose={() => setShowModelSettings(false)}
+          onSaved={() => {
+            gateway.restart()
+          }}
+        />
+      )}
+
+      {showChannelSettings && (
+        <ChannelSettings
+          onClose={() => setShowChannelSettings(false)}
+          onSaved={() => {
+            gateway.restart()
+          }}
+        />
+      )}
+
+      {showCronManager && (
+        <CronManager
+          client={ws.client}
+          connected={ws.connected}
+          onClose={() => setShowCronManager(false)}
+        />
       )}
     </ErrorBoundary>
   )

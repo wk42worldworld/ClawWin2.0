@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, shell, globalShortcut } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, shell, globalShortcut, Tray, dialog } from 'electron'
 import path from 'node:path'
 import os from 'node:os'
 import fs from 'node:fs'
@@ -9,6 +9,8 @@ import { signDeviceAuth, type DeviceAuthParams } from './device-identity'
 
 let mainWindow: BrowserWindow | null = null
 let gatewayManager: GatewayManager | null = null
+let tray: Tray | null = null
+let isQuitting = false
 
 const DIST = path.join(__dirname, '../dist')
 const PRELOAD = path.join(__dirname, 'preload.js')
@@ -19,6 +21,37 @@ function getIconPath(): string {
     return path.join(process.resourcesPath, 'assets', 'icon.ico')
   }
   return path.join(__dirname, '../assets/icon.ico')
+}
+
+function createTray() {
+  const iconPath = getIconPath()
+  tray = new Tray(iconPath)
+  tray.setToolTip('ClawWin')
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: '显示窗口',
+      click: () => {
+        mainWindow?.show()
+        mainWindow?.focus()
+      },
+    },
+    { type: 'separator' },
+    {
+      label: '退出',
+      click: () => {
+        isQuitting = true
+        app.quit()
+      },
+    },
+  ])
+
+  tray.setContextMenu(contextMenu)
+
+  tray.on('double-click', () => {
+    mainWindow?.show()
+    mainWindow?.focus()
+  })
 }
 
 function createWindow() {
@@ -85,6 +118,13 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(DIST, 'index.html'))
   }
+
+  mainWindow.on('close', (event) => {
+    if (!isQuitting) {
+      event.preventDefault()
+      mainWindow?.hide()
+    }
+  })
 
   mainWindow.on('closed', () => {
     mainWindow = null
@@ -186,6 +226,192 @@ function setupIPC() {
   ipcMain.handle('gateway:signDeviceAuth', (_event, params: DeviceAuthParams) => {
     return signDeviceAuth(params)
   })
+
+  // ===== Config IPC handlers =====
+
+  // Read full openclaw.json config
+  ipcMain.handle('config:readConfig', () => {
+    try {
+      const configPath = getOpenclawConfigPath()
+      if (!fs.existsSync(configPath)) return null
+      return JSON.parse(fs.readFileSync(configPath, 'utf-8'))
+    } catch {
+      return null
+    }
+  })
+
+  // Get API key for a provider
+  ipcMain.handle('config:getApiKey', (_event, profileId: string) => {
+    try {
+      const authFile = path.join(os.homedir(), '.openclaw', 'auth-profiles.json')
+      if (!fs.existsSync(authFile)) return null
+      const auth = JSON.parse(fs.readFileSync(authFile, 'utf-8'))
+      return auth?.profiles?.[profileId]?.key ?? null
+    } catch {
+      return null
+    }
+  })
+
+  // Save model and API key config (merge into existing config)
+  ipcMain.handle('config:saveModelConfig', (_event, params: {
+    provider: string
+    modelId: string
+    modelName: string
+    baseUrl: string
+    apiFormat: string
+    apiKey: string
+    reasoning?: boolean
+    contextWindow?: number
+    maxTokens?: number
+  }) => {
+    try {
+      const configPath = getOpenclawConfigPath()
+      const config = fs.existsSync(configPath)
+        ? JSON.parse(fs.readFileSync(configPath, 'utf-8'))
+        : {}
+
+      const providerModelKey = `${params.provider}/${params.modelId}`
+      const now = new Date().toISOString()
+
+      // Update agents.defaults.model.primary
+      if (!config.agents) config.agents = {}
+      if (!config.agents.defaults) config.agents.defaults = {}
+      if (!config.agents.defaults.model) config.agents.defaults.model = {}
+      config.agents.defaults.model.primary = providerModelKey
+
+      // Update agents.defaults.models
+      if (!config.agents.defaults.models) config.agents.defaults.models = {}
+      config.agents.defaults.models[providerModelKey] = { alias: params.modelName }
+
+      // Update models.providers
+      if (!config.models) config.models = { mode: 'merge' }
+      if (!config.models.providers) config.models.providers = {}
+      config.models.providers[params.provider] = {
+        baseUrl: params.baseUrl,
+        api: params.apiFormat,
+        models: [{
+          id: params.modelId,
+          name: params.modelName,
+          reasoning: params.reasoning ?? false,
+          input: ['text'],
+          contextWindow: params.contextWindow ?? 200000,
+          maxTokens: params.maxTokens ?? 8192,
+        }],
+      }
+
+      // Update auth.profiles
+      if (!config.auth) config.auth = {}
+      if (!config.auth.profiles) config.auth.profiles = {}
+      config.auth.profiles[`${params.provider}:default`] = {
+        provider: params.provider,
+        mode: 'api_key',
+      }
+
+      // Update meta
+      if (!config.meta) config.meta = {}
+      config.meta.lastTouchedAt = now
+
+      fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8')
+
+      // Write auth-profiles.json (API key)
+      if (params.apiKey) {
+        const openclawHome = path.join(os.homedir(), '.openclaw')
+        const authFile = path.join(openclawHome, 'auth-profiles.json')
+        let existingAuth: Record<string, unknown> = { profiles: {} }
+        if (fs.existsSync(authFile)) {
+          try { existingAuth = JSON.parse(fs.readFileSync(authFile, 'utf-8')) } catch { /* ignore */ }
+        }
+        if (!existingAuth.profiles || typeof existingAuth.profiles !== 'object') {
+          existingAuth.profiles = {}
+        }
+        ;(existingAuth.profiles as Record<string, unknown>)[`${params.provider}:default`] = {
+          provider: params.provider,
+          type: 'api_key',
+          key: params.apiKey,
+        }
+        const authJson = JSON.stringify(existingAuth, null, 2)
+        fs.writeFileSync(authFile, authJson, 'utf-8')
+        // Also write to agent directory
+        const agentDir = path.join(openclawHome, 'agents', 'main', 'agent')
+        fs.mkdirSync(agentDir, { recursive: true })
+        fs.writeFileSync(path.join(agentDir, 'auth-profiles.json'), authJson, 'utf-8')
+      }
+
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
+  // Read channels config
+  ipcMain.handle('config:getChannels', () => {
+    try {
+      const configPath = getOpenclawConfigPath()
+      if (!fs.existsSync(configPath)) return {}
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
+      return config?.channels ?? {}
+    } catch {
+      return {}
+    }
+  })
+
+  // Save channels config (merge into existing config)
+  ipcMain.handle('config:saveChannels', (_event, channels: Record<string, Record<string, string>>) => {
+    try {
+      const configPath = getOpenclawConfigPath()
+      const config = fs.existsSync(configPath)
+        ? JSON.parse(fs.readFileSync(configPath, 'utf-8'))
+        : {}
+
+      if (channels && Object.keys(channels).length > 0) {
+        config.channels = channels
+      } else {
+        delete config.channels
+      }
+
+      if (!config.meta) config.meta = {}
+      config.meta.lastTouchedAt = new Date().toISOString()
+
+      fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8')
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
+  // Save workspace path
+  ipcMain.handle('config:saveWorkspace', (_event, workspace: string) => {
+    try {
+      const configPath = getOpenclawConfigPath()
+      const config = fs.existsSync(configPath)
+        ? JSON.parse(fs.readFileSync(configPath, 'utf-8'))
+        : {}
+
+      if (!config.agents) config.agents = {}
+      if (!config.agents.defaults) config.agents.defaults = {}
+      config.agents.defaults.workspace = workspace
+
+      if (!config.meta) config.meta = {}
+      config.meta.lastTouchedAt = new Date().toISOString()
+
+      fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8')
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
+  // Native folder picker dialog
+  ipcMain.handle('dialog:selectFolder', async (_event, defaultPath?: string) => {
+    if (!mainWindow) return null
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: '选择文件夹',
+      defaultPath: defaultPath || os.homedir(),
+      properties: ['openDirectory', 'createDirectory'],
+    })
+    if (result.canceled || result.filePaths.length === 0) return null
+    return result.filePaths[0]
+  })
 }
 
 function initGatewayManager() {
@@ -208,6 +434,7 @@ function initGatewayManager() {
 app.whenReady().then(async () => {
   setupIPC()
   createWindow()
+  createTray()
   initGatewayManager()
 
   // Auto-start gateway if not first run
@@ -216,13 +443,15 @@ app.whenReady().then(async () => {
   }
 })
 
-app.on('window-all-closed', async () => {
-  await gatewayManager?.stop()
-  app.quit()
+app.on('window-all-closed', () => {
+  // Don't quit — tray keeps the app alive. Quit is handled by tray menu or app.quit()
 })
 
 app.on('before-quit', async () => {
+  isQuitting = true
   await gatewayManager?.stop()
+  tray?.destroy()
+  tray = null
 })
 
 app.on('activate', () => {

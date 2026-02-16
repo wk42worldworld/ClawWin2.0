@@ -67,6 +67,19 @@ export const WorkspaceSetup: React.FC<WorkspaceSetupProps> = ({
             }}
             autoFocus
           />
+          <button
+            className="btn-folder-picker"
+            type="button"
+            onClick={async () => {
+              const selected = await window.electronAPI.dialog.selectFolder(workspace || undefined)
+              if (selected) {
+                setWorkspace(selected)
+                setError(null)
+              }
+            }}
+          >
+            选择文件夹
+          </button>
         </div>
 
         {error && (
