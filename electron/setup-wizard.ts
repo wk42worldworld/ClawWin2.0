@@ -113,12 +113,12 @@ export function writeSetupConfig(config: Record<string, unknown>): { ok: boolean
     // ===== 1. Write openclaw.json =====
     const openclawConfig = {
       meta: {
-        lastTouchedVersion: '1.0.0',
+        lastTouchedVersion: '2.0.0',
         lastTouchedAt: now,
       },
       wizard: {
         lastRunAt: now,
-        lastRunVersion: '1.0.0',
+        lastRunVersion: '2.0.0',
         lastRunCommand: 'gui-onboard',
         lastRunMode: 'local',
       },
