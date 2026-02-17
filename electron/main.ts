@@ -517,14 +517,15 @@ function initGatewayManager() {
 
 app.whenReady().then(async () => {
   setupIPC()
-  createWindow()
-  createTray()
   initGatewayManager()
 
-  // Auto-start gateway if not first run
+  // Auto-start gateway if not first run (before creating window so state is ready)
   if (!isFirstRun()) {
     gatewayManager?.start()
   }
+
+  createWindow()
+  createTray()
 })
 
 app.on('window-all-closed', () => {

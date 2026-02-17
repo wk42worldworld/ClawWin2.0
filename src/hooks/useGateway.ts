@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { GatewayState, GatewayLog } from '../types'
 
 interface UseGatewayReturn {
@@ -16,25 +16,41 @@ export function useGateway(): UseGatewayReturn {
   const [logs, setLogs] = useState<GatewayLog[]>([])
   const [port, setPort] = useState(39527)
   const [token, setToken] = useState<string | null>(null)
+  const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    // 并行获取初始状态、token 和端口
-    Promise.all([
-      window.electronAPI.gateway.getStatus(),
-      window.electronAPI.gateway.getToken(),
-      window.electronAPI.gateway.getPort(),
-    ]).then(([status, initialToken, initialPort]) => {
-      setState(status.state)
-      setPort(initialPort || status.port)
-      setToken(initialToken)
-    }).catch((err) => {
-      console.error('[useGateway] 初始化失败:', err)
-    })
+    // 获取网关状态，如果是 stopped 则短暂重试（主进程可能还在初始化）
+    const fetchStatus = (retries = 3) => {
+      Promise.all([
+        window.electronAPI.gateway.getStatus(),
+        window.electronAPI.gateway.getToken(),
+        window.electronAPI.gateway.getPort(),
+      ]).then(([status, initialToken, initialPort]) => {
+        setState(status.state)
+        setPort(initialPort || status.port)
+        setToken(initialToken)
+        // 如果状态仍是 stopped 且有剩余重试次数，延迟重试
+        if (status.state === 'stopped' && retries > 0) {
+          retryRef.current = setTimeout(() => fetchStatus(retries - 1), 2000)
+        }
+      }).catch((err) => {
+        console.error('[useGateway] 初始化失败:', err)
+        if (retries > 0) {
+          retryRef.current = setTimeout(() => fetchStatus(retries - 1), 2000)
+        }
+      })
+    }
+
+    fetchStatus()
 
     // Listen for state changes
     const unsubState = window.electronAPI.gateway.onStateChanged(async (newState: GatewayState) => {
+      // 收到事件后取消重试
+      if (retryRef.current) {
+        clearTimeout(retryRef.current)
+        retryRef.current = null
+      }
       // 当 gateway 变为 ready 时，先获取 token 再更新状态
-      // 确保 token 在 state 变化之前就已就绪，避免 WebSocket 在没有 token 时连接
       if (newState === 'ready') {
         const [freshToken, freshPort] = await Promise.all([
           window.electronAPI.gateway.getToken(),
@@ -54,13 +70,13 @@ export function useGateway(): UseGatewayReturn {
     })
 
     return () => {
+      if (retryRef.current) clearTimeout(retryRef.current)
       unsubState()
       unsubLog()
     }
   }, [])
 
   const start = useCallback(async () => {
-    // Re-fetch token and port before starting (config may have just been written by setup wizard)
     const [freshToken, freshPort] = await Promise.all([
       window.electronAPI.gateway.getToken(),
       window.electronAPI.gateway.getPort(),
