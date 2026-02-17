@@ -288,7 +288,8 @@ export class GatewayManager {
       }
     }
 
-    return candidates[0]
+    this.log('error', `未找到 openclaw 入口文件，搜索路径: ${candidates.join(', ')}`)
+    throw new Error(`openclaw 未安装或入口文件缺失: ${this.opts.openclawPath}`)
   }
 
   private startHealthCheck() {

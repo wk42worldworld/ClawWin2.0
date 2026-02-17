@@ -27,6 +27,8 @@ export function useGateway(): UseGatewayReturn {
       setState(status.state)
       setPort(initialPort || status.port)
       setToken(initialToken)
+    }).catch((err) => {
+      console.error('[useGateway] 初始化失败:', err)
     })
 
     // Listen for state changes
@@ -40,8 +42,10 @@ export function useGateway(): UseGatewayReturn {
         ])
         setToken(freshToken)
         setPort(freshPort)
+        setState(newState)
+      } else {
+        setState(newState)
       }
-      setState(newState)
     })
 
     // Listen for logs

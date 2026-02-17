@@ -139,15 +139,15 @@ function setupIPC() {
 
   // Gateway start/stop/restart
   ipcMain.handle('gateway:start', async () => {
-    await gatewayManager?.start()
+    try { await gatewayManager?.start() } catch (err) { console.error('gateway:start failed:', err) }
   })
 
   ipcMain.handle('gateway:stop', async () => {
-    await gatewayManager?.stop()
+    try { await gatewayManager?.stop() } catch (err) { console.error('gateway:stop failed:', err) }
   })
 
   ipcMain.handle('gateway:restart', async () => {
-    await gatewayManager?.restart()
+    try { await gatewayManager?.restart() } catch (err) { console.error('gateway:restart failed:', err) }
   })
 
   // First run detection
@@ -213,8 +213,14 @@ function setupIPC() {
 
   // Open folder in file explorer (create if not exists)
   ipcMain.handle('shell:openPath', (_event, folderPath: string) => {
-    fs.mkdirSync(folderPath, { recursive: true })
-    shell.openPath(folderPath)
+    try {
+      // Expand ~ to home directory on all platforms
+      const resolved = folderPath.replace(/^~/, os.homedir())
+      fs.mkdirSync(resolved, { recursive: true })
+      shell.openPath(resolved)
+    } catch (err) {
+      console.error('shell:openPath failed:', err)
+    }
   })
 
   // Get app version
@@ -224,7 +230,12 @@ function setupIPC() {
 
   // Sign device auth for gateway connect handshake
   ipcMain.handle('gateway:signDeviceAuth', (_event, params: DeviceAuthParams) => {
-    return signDeviceAuth(params)
+    try {
+      return signDeviceAuth(params)
+    } catch (err) {
+      console.error('gateway:signDeviceAuth failed:', err)
+      throw err
+    }
   })
 
   // ===== Config IPC handlers =====
@@ -266,6 +277,9 @@ function setupIPC() {
   }) => {
     try {
       const configPath = getOpenclawConfigPath()
+      // Ensure .openclaw directory exists
+      const configDir = path.dirname(configPath)
+      if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true })
       const config = fs.existsSync(configPath)
         ? JSON.parse(fs.readFileSync(configPath, 'utf-8'))
         : {}
@@ -359,6 +373,9 @@ function setupIPC() {
   ipcMain.handle('config:saveChannels', (_event, channels: Record<string, Record<string, string>>) => {
     try {
       const configPath = getOpenclawConfigPath()
+      // Ensure .openclaw directory exists
+      const configDir = path.dirname(configPath)
+      if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true })
       const config = fs.existsSync(configPath)
         ? JSON.parse(fs.readFileSync(configPath, 'utf-8'))
         : {}
@@ -383,6 +400,9 @@ function setupIPC() {
   ipcMain.handle('config:saveWorkspace', (_event, workspace: string) => {
     try {
       const configPath = getOpenclawConfigPath()
+      // Ensure .openclaw directory exists
+      const configDir = path.dirname(configPath)
+      if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true })
       const config = fs.existsSync(configPath)
         ? JSON.parse(fs.readFileSync(configPath, 'utf-8'))
         : {}
@@ -398,6 +418,70 @@ function setupIPC() {
       return { ok: true }
     } catch (err) {
       return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
+  // ClawWin UI config file (separate from openclaw.json to avoid schema conflicts)
+  const UI_CONFIG_FILE = path.join(os.homedir(), '.openclaw', 'clawwin-ui.json')
+
+  function readUiConfig(): Record<string, unknown> {
+    try {
+      if (fs.existsSync(UI_CONFIG_FILE)) {
+        return JSON.parse(fs.readFileSync(UI_CONFIG_FILE, 'utf-8'))
+      }
+    } catch { /* ignore */ }
+    return {}
+  }
+
+  function writeUiConfig(config: Record<string, unknown>) {
+    const dir = path.dirname(UI_CONFIG_FILE)
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+    fs.writeFileSync(UI_CONFIG_FILE, JSON.stringify(config, null, 2), 'utf-8')
+  }
+
+  // Get response timeout (ms)
+  ipcMain.handle('config:getTimeout', () => {
+    try {
+      const ui = readUiConfig()
+      return (ui.responseTimeout as number) ?? 60000
+    } catch {
+      return 60000
+    }
+  })
+
+  // Save response timeout (ms)
+  ipcMain.handle('config:saveTimeout', (_event, ms: number) => {
+    try {
+      const ui = readUiConfig()
+      ui.responseTimeout = Math.max(15000, Math.min(600000, ms))
+      writeUiConfig(ui)
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
+  // ===== Sessions persistence =====
+
+  const SESSIONS_FILE = path.join(os.homedir(), '.openclaw', 'sessions.json')
+
+  ipcMain.handle('sessions:save', (_event, sessions: unknown[]) => {
+    try {
+      const dir = path.dirname(SESSIONS_FILE)
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+      fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2), 'utf-8')
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
+  ipcMain.handle('sessions:load', () => {
+    try {
+      if (!fs.existsSync(SESSIONS_FILE)) return []
+      return JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf-8'))
+    } catch {
+      return []
     }
   })
 

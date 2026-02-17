@@ -19,6 +19,11 @@ const HELP_URLS: Record<string, string> = {
   'Moonshot / Kimi': 'https://platform.moonshot.cn/',
   'xAI (Grok)': 'https://console.x.ai/',
   'Z.AI / 智谱': 'https://open.bigmodel.cn/',
+  '智谱 (Z.AI)': 'https://open.bigmodel.cn/',
+  '通义千问 / Qwen': 'https://dashscope.console.aliyun.com/',
+  '硅基流动 / SiliconFlow': 'https://cloud.siliconflow.cn/',
+  'NVIDIA (NIM)': 'https://build.nvidia.com/',
+  'Google (Gemini)': 'https://aistudio.google.com/apikey',
 }
 
 export const ApiKeyInput: React.FC<ApiKeyInputProps> = ({

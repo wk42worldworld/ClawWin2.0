@@ -30,6 +30,7 @@ function App() {
 
   const [sessions, setSessions] = useState<ChatSession[]>([])
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
+  const [sessionsLoaded, setSessionsLoaded] = useState(false)
   const [showSetup, setShowSetup] = useState(false)
   const [selectedProviderObj, setSelectedProviderObj] = useState<ModelProvider | null>(null)
   const [selectedModelObj, setSelectedModelObj] = useState<ModelInfo | null>(null)
@@ -40,13 +41,14 @@ function App() {
   const [showChannelSettings, setShowChannelSettings] = useState(false)
   const [showCronManager, setShowCronManager] = useState(false)
   const [settingsWorkspace, setSettingsWorkspace] = useState(setup.config.workspace ?? '~/openclaw')
+  const [responseTimeout, setResponseTimeout] = useState(60000)
   const waitingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // 使用 ref 追踪最新的 activeSessionId，避免回调闭包中拿到旧值
   const activeSessionIdRef = useRef<string | null>(null)
   activeSessionIdRef.current = activeSessionId
 
-  // 超时处理：30 秒无响应自动取消等待并提示错误
+  // 根据用户配置的超时时间自动取消等待并提示错误
   const startWaiting = useCallback(() => {
     setIsWaiting(true)
     if (waitingTimerRef.current) clearTimeout(waitingTimerRef.current)
@@ -58,18 +60,19 @@ function App() {
         if (!sid) return prev
         return prev.map((s) => {
           if (s.id !== sid) return s
+          const secs = Math.round(responseTimeout / 1000)
           const errMsg: ChatMessage = {
             id: generateId(),
             role: 'assistant',
-            content: 'AI 响应超时，请检查：\n1. API Key 是否有效\n2. 网络是否正常\n3. 所选模型服务是否可用',
+            content: `AI 响应超时（已等待 ${secs} 秒），可能的原因：\n1. 当前超时时间设置较短，可在"设置"中调大响应超时\n2. 网络连接不稳定\n3. API Key 无效或额度已用尽\n4. 所选模型服务暂时不可用`,
             timestamp: Date.now(),
             status: 'error',
           }
           return { ...s, messages: [...s.messages, errMsg], updatedAt: Date.now() }
         })
       })
-    }, 30000)
-  }, [])
+    }, responseTimeout)
+  }, [responseTimeout])
 
   const stopWaiting = useCallback(() => {
     setIsWaiting(false)
@@ -86,6 +89,47 @@ function App() {
     token: gateway.token ?? undefined,
     enabled: gateway.state === 'ready',
   })
+
+  // Load sessions from disk on mount
+  useEffect(() => {
+    window.electronAPI.sessions.load().then((loaded) => {
+      if (Array.isArray(loaded) && loaded.length > 0) {
+        setSessions(loaded)
+        // Restore active session to the most recently updated one
+        const sorted = [...loaded].sort((a, b) => b.updatedAt - a.updatedAt)
+        setActiveSessionId(sorted[0].id)
+      }
+      setSessionsLoaded(true)
+    }).catch(() => {
+      setSessionsLoaded(true)
+    })
+    // Load response timeout
+    window.electronAPI.config.getTimeout().then((ms) => {
+      if (ms > 0) setResponseTimeout(ms)
+    }).catch(() => {})
+  }, [])
+
+  // Save sessions to disk on change (debounced)
+  useEffect(() => {
+    if (!sessionsLoaded) return
+    const timer = setTimeout(() => {
+      window.electronAPI.sessions.save(sessions)
+    }, 1000)
+    return () => clearTimeout(timer)
+  }, [sessions, sessionsLoaded])
+
+  // Save response timeout on change (debounced)
+  const timeoutLoadedRef = useRef(false)
+  useEffect(() => {
+    if (!timeoutLoadedRef.current) {
+      timeoutLoadedRef.current = true
+      return
+    }
+    const timer = setTimeout(() => {
+      window.electronAPI.config.saveTimeout(responseTimeout)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [responseTimeout])
 
   // Show setup on first run
   useEffect(() => {
@@ -211,7 +255,7 @@ function App() {
       // 每个前端会话用自己的 id 作为 Gateway sessionKey
       ws.sendMessage(activeSessionId, content)
     },
-    [activeSessionId, ws]
+    [activeSessionId, ws, startWaiting]
   )
 
   // Setup wizard handlers
@@ -458,14 +502,18 @@ function App() {
                   <button
                     className="btn-folder-picker"
                     onClick={async () => {
-                      const selected = await window.electronAPI.dialog.selectFolder(settingsWorkspace || undefined)
-                      if (selected) {
-                        setSettingsWorkspace(selected)
-                        const res = await window.electronAPI.config.saveWorkspace(selected)
-                        if (res.ok) {
-                          setup.updateConfig({ workspace: selected })
-                          await gateway.restart()
+                      try {
+                        const selected = await window.electronAPI.dialog.selectFolder(settingsWorkspace || undefined)
+                        if (selected) {
+                          setSettingsWorkspace(selected)
+                          const res = await window.electronAPI.config.saveWorkspace(selected)
+                          if (res.ok) {
+                            setup.updateConfig({ workspace: selected })
+                            await gateway.restart()
+                          }
                         }
+                      } catch (err) {
+                        console.error('工作区设置失败:', err)
                       }
                     }}
                   >
@@ -480,6 +528,26 @@ function App() {
               <div className="settings-section">
                 <h3>网关服务</h3>
                 <p className="settings-value">端口 {gateway.port} · {gateway.state === 'ready' ? '运行中' : gateway.state}</p>
+              </div>
+              <div className="settings-section">
+                <h3>响应超时</h3>
+                <p className="settings-hint">发送消息后等待 AI 回复的最长时间，推理模型建议 120 秒以上</p>
+                <div className="settings-timeout-row">
+                  <input
+                    type="range"
+                    min={15000}
+                    max={600000}
+                    step={5000}
+                    value={responseTimeout}
+                    onChange={(e) => setResponseTimeout(Number(e.target.value))}
+                    className="settings-timeout-slider"
+                  />
+                  <span className="settings-timeout-value">
+                    {responseTimeout >= 60000
+                      ? `${Math.floor(responseTimeout / 60000)}分${(responseTimeout % 60000) / 1000 > 0 ? `${(responseTimeout % 60000) / 1000}秒` : ''}`
+                      : `${responseTimeout / 1000}秒`}
+                  </span>
+                </div>
               </div>
               <div className="settings-section">
                 <h3>消息渠道</h3>
@@ -555,7 +623,7 @@ function App() {
           currentModel={setup.config.modelId}
           onClose={() => setShowModelSettings(false)}
           onSaved={() => {
-            gateway.restart()
+            gateway.restart().catch((err) => console.error('gateway restart failed:', err))
           }}
         />
       )}
@@ -564,7 +632,7 @@ function App() {
         <ChannelSettings
           onClose={() => setShowChannelSettings(false)}
           onSaved={() => {
-            gateway.restart()
+            gateway.restart().catch((err) => console.error('gateway restart failed:', err))
           }}
         />
       )}

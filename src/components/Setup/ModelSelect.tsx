@@ -21,15 +21,43 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({
   onSkip,
 }) => {
   const [customUrl, setCustomUrl] = useState('')
+  const [customModelId, setCustomModelId] = useState('')
+  const [customModelName, setCustomModelName] = useState('')
+  const [customFormat, setCustomFormat] = useState('openai-completions')
+  const [customSelected, setCustomSelected] = useState(false)
 
   const PROVIDER_TAGS: Record<string, { label: string; className: string }> = {
     minimax: { label: '国内直连', className: 'tag-domestic' },
-    deepseek: { label: '国内直连 · 推荐', className: 'tag-recommended' },
+    deepseek: { label: '国内直连', className: 'tag-domestic' },
     anthropic: { label: '需科学上网', className: 'tag-international' },
     openai: { label: '需科学上网', className: 'tag-international' },
     moonshot: { label: '国内直连', className: 'tag-domestic' },
     xai: { label: '需科学上网', className: 'tag-international' },
-    zhipu: { label: '国内直连', className: 'tag-domestic' },
+    zhipu: { label: '国内直连 · 推荐', className: 'tag-recommended' },
+    qwen: { label: '国内直连', className: 'tag-domestic' },
+    siliconflow: { label: '国内直连 · 聚合', className: 'tag-domestic' },
+    nvidia: { label: '需科学上网 · 免费额度', className: 'tag-international' },
+    google: { label: '需科学上网', className: 'tag-international' },
+  }
+
+  const handleCustomConfirm = () => {
+    if (!customUrl.trim() || !customModelId.trim()) return
+    const name = customModelName.trim() || customModelId.trim()
+    const customProvider: ModelProvider = {
+      id: 'custom',
+      name: '自定义',
+      baseUrl: customUrl.trim().replace(/\/+$/, ''),
+      apiFormat: customFormat,
+      models: [{
+        id: customModelId.trim(),
+        name,
+        reasoning: false,
+        contextWindow: 128000,
+        maxTokens: 8192,
+      }],
+    }
+    setCustomSelected(true)
+    onSelect(customProvider, customProvider.models[0])
   }
 
   return (
@@ -53,9 +81,12 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({
                 <div
                   key={model.id}
                   className={`model-item model-item-animated ${
-                    selectedProvider === provider.id && selectedModel === model.id ? 'selected' : ''
+                    selectedProvider === provider.id && selectedModel === model.id && !customSelected ? 'selected' : ''
                   }`}
-                  onClick={() => onSelect(provider, model)}
+                  onClick={() => {
+                    setCustomSelected(false)
+                    onSelect(provider, model)
+                  }}
                   style={{ animationDelay: `${idx * 0.03}s` }}
                 >
                   <div className="model-name">{model.name}</div>
@@ -70,19 +101,50 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({
         ))}
 
         {/* Custom provider */}
-        <div className="provider-card">
+        <div className={`provider-card${customSelected ? ' provider-card-custom-active' : ''}`}>
           <div className="provider-header">
             <span className="provider-name">自定义</span>
             <span className="provider-tag tag-custom">自定义 API</span>
           </div>
-          <div className="custom-url-input">
+          <div className="custom-fields">
             <input
               type="text"
-              placeholder="https://your-api.example.com/v1"
+              placeholder="API 地址，如 https://api.example.com/v1"
               value={customUrl}
-              onChange={(e) => setCustomUrl(e.target.value)}
+              onChange={(e) => { setCustomUrl(e.target.value); setCustomSelected(false) }}
               className="input-field"
             />
+            <input
+              type="text"
+              placeholder="模型 ID，如 gpt-4o"
+              value={customModelId}
+              onChange={(e) => { setCustomModelId(e.target.value); setCustomSelected(false) }}
+              className="input-field"
+            />
+            <input
+              type="text"
+              placeholder="显示名称（可选）"
+              value={customModelName}
+              onChange={(e) => setCustomModelName(e.target.value)}
+              className="input-field"
+            />
+            <div className="custom-format-row">
+              <select
+                value={customFormat}
+                onChange={(e) => setCustomFormat(e.target.value)}
+                className="input-field custom-format-select"
+              >
+                <option value="openai-completions">OpenAI 兼容</option>
+                <option value="anthropic-messages">Anthropic 格式</option>
+              </select>
+              <button
+                className="btn-primary btn-custom-confirm"
+                onClick={handleCustomConfirm}
+                disabled={!customUrl.trim() || !customModelId.trim()}
+              >
+                {customSelected ? '已选择' : '确认选择'}
+              </button>
+            </div>
           </div>
         </div>
       </div>

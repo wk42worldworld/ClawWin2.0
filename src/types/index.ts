@@ -55,6 +55,13 @@ interface ElectronConfig {
   getChannels: () => Promise<Record<string, Record<string, string>>>
   saveChannels: (channels: Record<string, Record<string, string>>) => Promise<{ ok: boolean; error?: string }>
   saveWorkspace: (workspace: string) => Promise<{ ok: boolean; error?: string }>
+  getTimeout: () => Promise<number>
+  saveTimeout: (ms: number) => Promise<{ ok: boolean; error?: string }>
+}
+
+interface ElectronSessions {
+  save: (sessions: ChatSession[]) => Promise<{ ok: boolean; error?: string }>
+  load: () => Promise<ChatSession[]>
 }
 
 interface ElectronDialog {
@@ -67,6 +74,7 @@ interface ElectronAPI {
   shell: { openExternal: (url: string) => Promise<void>; openPath: (folderPath: string) => Promise<void> }
   app: { getVersion: () => Promise<string> }
   config: ElectronConfig
+  sessions: ElectronSessions
   dialog: ElectronDialog
 }
 

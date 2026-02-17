@@ -96,6 +96,16 @@ const electronAPI = {
       ipcRenderer.invoke('config:saveChannels', channels),
     saveWorkspace: (workspace: string): Promise<{ ok: boolean; error?: string }> =>
       ipcRenderer.invoke('config:saveWorkspace', workspace),
+    getTimeout: (): Promise<number> => ipcRenderer.invoke('config:getTimeout'),
+    saveTimeout: (ms: number): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke('config:saveTimeout', ms),
+  },
+
+  // Sessions persistence
+  sessions: {
+    save: (sessions: unknown[]): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke('sessions:save', sessions),
+    load: (): Promise<unknown[]> => ipcRenderer.invoke('sessions:load'),
   },
 
   // Dialog

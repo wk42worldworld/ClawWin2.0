@@ -2537,11 +2537,56 @@ body {
   white-space: nowrap;
 }
 
+/* ---- Timeout Slider ---- */
+.settings-timeout-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-timeout-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+.settings-timeout-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(0, 162, 224, 0.4);
+}
+
+.settings-timeout-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
+  min-width: 60px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.settings-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
 /* ============================================
    Wide Settings Panel (for ModelSettings, ChannelSettings, CronManager)
    ============================================ */
 .settings-panel-wide {
   width: 640px;
+  max-width: 90vw;
   max-height: 85vh;
   background: var(--bg-sidebar);
   border: 1px solid var(--border);
@@ -2559,6 +2604,7 @@ body {
   padding: 24px 28px;
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
 }
 
 .model-settings-current {
@@ -2608,6 +2654,7 @@ body {
 .model-settings-provider-card.selected {
   border-color: var(--accent);
   background: rgba(0, 162, 224, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 162, 224, 0.12);
 }
 
 .model-settings-provider-header {
@@ -2665,18 +2712,44 @@ body {
   color: var(--text-muted);
 }
 
-.model-settings-apikey-section {
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid var(--border);
+.model-settings-model-list.custom-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
 }
 
-.model-settings-apikey-label {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  margin-bottom: 8px;
-  display: block;
+.custom-format-select {
+  appearance: none;
+  cursor: pointer;
+}
+
+.btn-custom-confirm {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+/* ---- Fixed footer: API Key + Save ---- */
+.model-settings-footer {
+  flex-shrink: 0;
+  padding: 16px 28px 20px;
+  border-top: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.model-settings-footer-context {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+  margin-bottom: 10px;
+}
+
+.model-settings-footer-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 4px 0;
 }
 
 .model-settings-apikey-row {
@@ -2686,15 +2759,6 @@ body {
 
 .model-settings-apikey-row .input-field {
   flex: 1;
-}
-
-.model-settings-actions {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
 }
 
 .model-settings-status {

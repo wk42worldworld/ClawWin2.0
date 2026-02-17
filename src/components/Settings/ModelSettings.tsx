@@ -11,12 +11,16 @@ interface ModelSettingsProps {
 
 const PROVIDER_TAGS: Record<string, { label: string; className: string }> = {
   minimax: { label: '国内直连', className: 'tag-domestic' },
-  deepseek: { label: '国内直连 · 推荐', className: 'tag-recommended' },
+  deepseek: { label: '国内直连', className: 'tag-domestic' },
   anthropic: { label: '需科学上网', className: 'tag-international' },
   openai: { label: '需科学上网', className: 'tag-international' },
   moonshot: { label: '国内直连', className: 'tag-domestic' },
   xai: { label: '需科学上网', className: 'tag-international' },
-  zhipu: { label: '国内直连', className: 'tag-domestic' },
+  zhipu: { label: '国内直连 · 推荐', className: 'tag-recommended' },
+  qwen: { label: '国内直连', className: 'tag-domestic' },
+  siliconflow: { label: '国内直连 · 聚合', className: 'tag-domestic' },
+  nvidia: { label: '需科学上网 · 免费额度', className: 'tag-international' },
+  google: { label: '需科学上网', className: 'tag-international' },
 }
 
 export const ModelSettings: React.FC<ModelSettingsProps> = ({
@@ -33,9 +37,16 @@ export const ModelSettings: React.FC<ModelSettingsProps> = ({
   const [saving, setSaving] = useState(false)
   const [saveResult, setSaveResult] = useState<{ ok: boolean; error?: string } | null>(null)
 
+  // Custom model state
+  const [customUrl, setCustomUrl] = useState('')
+  const [customModelId, setCustomModelId] = useState('')
+  const [customModelName, setCustomModelName] = useState('')
+  const [customFormat, setCustomFormat] = useState('openai-completions')
+  const [isCustom, setIsCustom] = useState(false)
+
   // Load current API key when provider changes
   useEffect(() => {
-    if (!selectedProvider) return
+    if (!selectedProvider || selectedProvider === 'custom') return
     let cancelled = false
 
     window.electronAPI.config
@@ -55,8 +66,25 @@ export const ModelSettings: React.FC<ModelSettingsProps> = ({
   }, [selectedProvider])
 
   const getProviderById = useCallback(
-    (id: string): ModelProvider | undefined => MODEL_PROVIDERS.find((p) => p.id === id),
-    []
+    (id: string): ModelProvider | undefined => {
+      if (id === 'custom' && isCustom) {
+        return {
+          id: 'custom',
+          name: '自定义',
+          baseUrl: customUrl.trim().replace(/\/+$/, ''),
+          apiFormat: customFormat,
+          models: [{
+            id: customModelId.trim(),
+            name: customModelName.trim() || customModelId.trim(),
+            reasoning: false,
+            contextWindow: 128000,
+            maxTokens: 8192,
+          }],
+        }
+      }
+      return MODEL_PROVIDERS.find((p) => p.id === id)
+    },
+    [isCustom, customUrl, customFormat, customModelId, customModelName]
   )
 
   const getModelById = useCallback(
@@ -80,6 +108,7 @@ export const ModelSettings: React.FC<ModelSettingsProps> = ({
       setApiKey('')
       setValidateResult(null)
       setSaveResult(null)
+      setIsCustom(false)
     },
     []
   )
@@ -215,17 +244,79 @@ export const ModelSettings: React.FC<ModelSettingsProps> = ({
                 </div>
               )
             })}
-          </div>
 
-          {/* API Key section */}
-          {selectedProvider && selectedModel && (
-            <div className="model-settings-apikey-section">
-              <label className="model-settings-apikey-label">API Key</label>
+            {/* Custom provider card */}
+            <div className={`model-settings-provider-card${isCustom ? ' selected' : ''}`}>
+              <div
+                className="model-settings-provider-header"
+                onClick={() => {
+                  setSelectedProvider('custom')
+                  setSelectedModel('')
+                  setIsCustom(true)
+                  setValidateResult(null)
+                  setSaveResult(null)
+                }}
+              >
+                <span className="model-settings-provider-name">自定义</span>
+                <span className="provider-tag tag-custom">自定义 API</span>
+              </div>
+              {isCustom && (
+                <div className="model-settings-model-list custom-fields">
+                  <input
+                    type="text"
+                    placeholder="API 地址，如 https://api.example.com/v1"
+                    value={customUrl}
+                    onChange={(e) => setCustomUrl(e.target.value)}
+                    className="input-field"
+                  />
+                  <input
+                    type="text"
+                    placeholder="模型 ID，如 gpt-4o"
+                    value={customModelId}
+                    onChange={(e) => setCustomModelId(e.target.value)}
+                    className="input-field"
+                  />
+                  <input
+                    type="text"
+                    placeholder="显示名称（可选）"
+                    value={customModelName}
+                    onChange={(e) => setCustomModelName(e.target.value)}
+                    className="input-field"
+                  />
+                  <select
+                    value={customFormat}
+                    onChange={(e) => setCustomFormat(e.target.value)}
+                    className="input-field custom-format-select"
+                  >
+                    <option value="openai-completions">OpenAI 兼容</option>
+                    <option value="anthropic-messages">Anthropic 格式</option>
+                  </select>
+                  <button
+                    className="btn-primary btn-custom-confirm"
+                    onClick={() => {
+                      if (!customUrl.trim() || !customModelId.trim()) return
+                      setSelectedProvider('custom')
+                      setSelectedModel(customModelId.trim())
+                    }}
+                    disabled={!customUrl.trim() || !customModelId.trim()}
+                  >
+                    确认选择
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Fixed footer: API Key + Save */}
+        <div className="model-settings-footer">
+          {selectedProvider && selectedModel ? (
+            <>
               <div className="model-settings-apikey-row">
                 <input
                   type="password"
                   className="input-field"
-                  placeholder="请输入您的 API Key"
+                  placeholder="请输入 API Key"
                   value={apiKey}
                   onChange={(e) => {
                     setApiKey(e.target.value)
@@ -240,43 +331,34 @@ export const ModelSettings: React.FC<ModelSettingsProps> = ({
                 >
                   {validating ? '验证中...' : '验证'}
                 </button>
+                <button
+                  className="btn-primary"
+                  onClick={handleSave}
+                  disabled={!canSave || saving}
+                >
+                  {saving ? '保存中...' : '保存并应用'}
+                </button>
               </div>
-
               {validateResult?.ok && (
-                <div className="model-settings-status success">
-                  API Key 验证通过！
-                </div>
+                <div className="model-settings-status success">API Key 验证通过！</div>
               )}
               {validateResult && !validateResult.ok && (
                 <div className="model-settings-status error">
                   {validateResult.error || '连接失败，请检查 API Key 是否正确'}
                 </div>
               )}
-            </div>
+              {saveResult?.ok && (
+                <div className="model-settings-status success">配置已保存，正在重启网关...</div>
+              )}
+              {saveResult && !saveResult.ok && (
+                <div className="model-settings-status error">
+                  {saveResult.error || '保存失败，请重试'}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="model-settings-footer-hint">请选择一个厂商和模型</div>
           )}
-
-          {/* Save result feedback */}
-          {saveResult && !saveResult.ok && (
-            <div className="model-settings-status error">
-              {saveResult.error || '保存失败，请重试'}
-            </div>
-          )}
-          {saveResult?.ok && (
-            <div className="model-settings-status success">
-              配置已保存，正在重启网关...
-            </div>
-          )}
-
-          {/* Save button */}
-          <div className="model-settings-actions">
-            <button
-              className="btn-primary"
-              onClick={handleSave}
-              disabled={!canSave || saving}
-            >
-              {saving ? '保存中...' : '保存并应用'}
-            </button>
-          </div>
         </div>
       </div>
     </div>
