@@ -165,6 +165,8 @@ export interface SkillInfo {
   os?: string[]
   primaryEnv?: string
   requiresApiKey: boolean
+  requiresBins?: string[]
+  requiresAnyBin?: boolean
   apiKey?: string
 }
 

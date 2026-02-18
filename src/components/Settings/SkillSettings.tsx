@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { SkillInfo, SkillEntryConfig } from '../../types'
+import { SKILL_CN } from '../../constants/skillCn'
 
 interface SkillSettingsProps {
   onClose: () => void
@@ -91,7 +92,7 @@ export function SkillSettings({ onClose }: SkillSettingsProps) {
   }, [])
 
   const handleOpenStore = useCallback(() => {
-    window.electronAPI.shell.openExternal('https://openclaw.ai/skills')
+    window.electronAPI.shell.openExternal('https://clawhub.ai/')
   }, [])
 
   const statusLabel = (s: SkillInfo) => {
@@ -185,7 +186,7 @@ export function SkillSettings({ onClose }: SkillSettingsProps) {
                       </span>
                       <div className="channel-info">
                         <span className="channel-name">{skill.name}</span>
-                        <span className="channel-blurb">{skill.description}</span>
+                        <span className="channel-blurb">{SKILL_CN[skill.name] || skill.description}</span>
                       </div>
                       <span className={`skill-status-badge ${statusClass(skill)}`}>
                         {statusLabel(skill)}

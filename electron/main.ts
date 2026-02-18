@@ -40,8 +40,13 @@ function createTray() {
     { type: 'separator' },
     {
       label: '退出',
-      click: () => {
+      click: async () => {
         isQuitting = true
+        try {
+          await gatewayManager?.stop()
+        } catch { /* ignore */ }
+        tray?.destroy()
+        tray = null
         app.quit()
       },
     },
@@ -555,9 +560,11 @@ app.on('window-all-closed', () => {
   // Don't quit — tray keeps the app alive. Quit is handled by tray menu or app.quit()
 })
 
-app.on('before-quit', async () => {
+app.on('before-quit', () => {
   isQuitting = true
-  await gatewayManager?.stop()
+  // Gateway stop is handled by tray exit handler.
+  // This is a fallback for other quit paths (e.g. OS shutdown).
+  gatewayManager?.stop().catch(() => {})
   tray?.destroy()
   tray = null
 })

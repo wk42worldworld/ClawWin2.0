@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import type { SkillInfo, SkillsConfig, SkillEntryConfig } from '../../types'
+import { SKILL_CN } from '../../constants/skillCn'
 
 interface SkillsSetupProps {
   skills: SkillInfo[]
@@ -90,7 +91,7 @@ export function SkillsSetup({
                 <span className="skill-icon">{skill.emoji ?? '🔧'}</span>
                 <div className="skill-info">
                   <span className="skill-name">{skill.name}</span>
-                  <span className="skill-desc">{skill.description}</span>
+                  <span className="skill-desc">{SKILL_CN[skill.name] || skill.description}</span>
                 </div>
 
                 {blocked ? (
