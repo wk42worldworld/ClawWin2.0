@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { MODEL_PROVIDERS } from '../../hooks/useSetup'
 import type { ModelProvider, ModelInfo } from '../../types'
+import { CustomSelect } from '../Common/CustomSelect'
 
 interface ModelSettingsProps {
   currentProvider?: string
@@ -283,14 +284,15 @@ export const ModelSettings: React.FC<ModelSettingsProps> = ({
                     onChange={(e) => setCustomModelName(e.target.value)}
                     className="input-field"
                   />
-                  <select
+                  <CustomSelect
                     value={customFormat}
-                    onChange={(e) => setCustomFormat(e.target.value)}
-                    className="input-field custom-format-select"
-                  >
-                    <option value="openai-completions">OpenAI 兼容</option>
-                    <option value="anthropic-messages">Anthropic 格式</option>
-                  </select>
+                    onChange={(val) => setCustomFormat(val)}
+                    options={[
+                      { value: 'openai-completions', label: 'OpenAI 兼容' },
+                      { value: 'anthropic-messages', label: 'Anthropic 格式' },
+                    ]}
+                    className="custom-format-select"
+                  />
                   <button
                     className="btn-primary btn-custom-confirm"
                     onClick={() => {
