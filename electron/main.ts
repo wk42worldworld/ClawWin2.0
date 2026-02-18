@@ -6,6 +6,7 @@ import { GatewayManager } from './gateway-manager'
 import { isFirstRun, getOpenclawConfigPath, writeSetupConfig, validateApiKey } from './setup-wizard'
 import { getNodePath, getOpenclawPath } from './node-runtime'
 import { signDeviceAuth, type DeviceAuthParams } from './device-identity'
+import { scanSkills, getSkillsConfig, saveSkillsConfig } from './skills-scanner'
 
 let mainWindow: BrowserWindow | null = null
 let gatewayManager: GatewayManager | null = null
@@ -495,6 +496,28 @@ function setupIPC() {
     })
     if (result.canceled || result.filePaths.length === 0) return null
     return result.filePaths[0]
+  })
+
+  // ===== Skills IPC handlers =====
+  ipcMain.handle('skills:list', () => {
+    try {
+      return scanSkills()
+    } catch (err) {
+      console.error('skills:list failed:', err)
+      return []
+    }
+  })
+
+  ipcMain.handle('skills:getConfig', () => {
+    try {
+      return getSkillsConfig()
+    } catch {
+      return {}
+    }
+  })
+
+  ipcMain.handle('skills:saveConfig', (_event, config: Record<string, unknown>) => {
+    return saveSkillsConfig(config as Record<string, { enabled?: boolean; apiKey?: string; env?: Record<string, string> }>)
   })
 }
 

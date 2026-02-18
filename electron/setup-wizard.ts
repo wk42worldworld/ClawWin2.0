@@ -66,6 +66,7 @@ export interface SetupConfig {
   gatewayPort?: number
   gatewayToken?: string
   channels?: Record<string, Record<string, string>>
+  skills?: Record<string, unknown>
 }
 
 /**
@@ -271,6 +272,9 @@ export function writeSetupConfig(config: Record<string, unknown>): { ok: boolean
           watchDebounceMs: 250,
         },
         install: { nodeManager: 'npm' },
+        ...(setup.skills && Object.keys(setup.skills).length > 0
+          ? { entries: setup.skills }
+          : {}),
       },
       hooks: {
         internal: {

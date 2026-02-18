@@ -7,18 +7,20 @@ import { ApiKeyInput } from './components/Setup/ApiKeyInput'
 import { WorkspaceSetup } from './components/Setup/WorkspaceSetup'
 import { GatewaySetup } from './components/Setup/GatewaySetup'
 import { ChannelSetup } from './components/Setup/ChannelSetup'
+import { SkillsSetup } from './components/Setup/SkillsSetup'
 import { SetupComplete } from './components/Setup/SetupComplete'
 import { ErrorBoundary } from './components/Common/ErrorBoundary'
 import { Loading } from './components/Common/Loading'
 import { ModelSettings } from './components/Settings/ModelSettings'
 import { ChannelSettings } from './components/Settings/ChannelSettings'
+import { SkillSettings } from './components/Settings/SkillSettings'
 import { CronManager } from './components/Settings/CronManager'
 import { useGateway } from './hooks/useGateway'
 import { useWebSocket } from './hooks/useWebSocket'
 import { useSetup, type SetupStep } from './hooks/useSetup'
-import type { ChatMessage, ChatSession, ModelProvider, ModelInfo } from './types'
+import type { ChatMessage, ChatSession, ModelProvider, ModelInfo, SkillInfo, SkillsConfig } from './types'
 
-const SETUP_STEPS: SetupStep[] = ['welcome', 'model', 'apikey', 'workspace', 'gateway', 'channels', 'complete']
+const SETUP_STEPS: SetupStep[] = ['welcome', 'model', 'apikey', 'workspace', 'gateway', 'channels', 'skills', 'complete']
 
 function generateId(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
@@ -40,6 +42,8 @@ function App() {
   const [showModelSettings, setShowModelSettings] = useState(false)
   const [showChannelSettings, setShowChannelSettings] = useState(false)
   const [showCronManager, setShowCronManager] = useState(false)
+  const [setupSkills, setSetupSkills] = useState<SkillInfo[]>([])
+  const [setupSkillsConfig, setSetupSkillsConfig] = useState<SkillsConfig>({})
   const [settingsWorkspace, setSettingsWorkspace] = useState(setup.config.workspace ?? '~/openclaw')
   const [responseTimeout, setResponseTimeout] = useState(60000)
   const waitingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -383,8 +387,26 @@ function App() {
               onBack={() => setup.setStep('gateway')}
               onNext={(channels) => {
                 setup.updateConfig({ channels })
-                setup.setStep('complete')
+                // Load skills list before entering skills step
+                window.electronAPI.skills.list()
+                  .then((list) => setSetupSkills(list))
+                  .catch(() => setSetupSkills([]))
+                setup.setStep('skills')
               }}
+            />
+          )}
+
+          {setup.step === 'skills' && (
+            <SkillsSetup
+              skills={setupSkills}
+              skillsConfig={setupSkillsConfig}
+              onConfigChange={(config) => {
+                setSetupSkillsConfig(config)
+                setup.updateConfig({ skills: config })
+              }}
+              onBack={() => setup.setStep('channels')}
+              onNext={() => setup.setStep('complete')}
+              onSkip={() => setup.setStep('complete')}
             />
           )}
 
@@ -399,7 +421,7 @@ function App() {
               error={setup.saveError}
               onBack={() => {
                 setup.clearError()
-                setup.setStep('channels')
+                setup.setStep('skills')
               }}
               onComplete={handleSetupComplete}
             />
@@ -577,44 +599,9 @@ function App() {
       )}
 
       {showSkills && (
-        <div className="settings-overlay" onClick={() => setShowSkills(false)}>
-          <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
-            <div className="settings-header">
-              <h2>技能管理</h2>
-              <button className="settings-close" onClick={() => setShowSkills(false)}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-            <div className="settings-body">
-              <div className="settings-section">
-                <h3>技能目录</h3>
-                <p className="settings-value">{(setup.config.workspace ?? '~/openclaw').replace(/\/$/, '') + '/skills'}</p>
-              </div>
-              <div className="skills-actions">
-                <button
-                  className="btn-primary skills-btn"
-                  onClick={() => {
-                    const skillsPath = (setup.config.workspace ?? '~/openclaw').replace(/\/$/, '') + '/skills'
-                    window.electronAPI.shell.openPath(skillsPath)
-                  }}
-                >
-                  打开技能文件夹
-                </button>
-                <button
-                  className="btn-primary skills-btn skills-btn-store"
-                  onClick={() => {
-                    window.electronAPI.shell.openExternal('https://clawhub.ai/')
-                  }}
-                >
-                  技能商城
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <SkillSettings
+          onClose={() => setShowSkills(false)}
+        />
       )}
 
       {showModelSettings && (

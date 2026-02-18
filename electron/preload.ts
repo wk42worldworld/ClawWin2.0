@@ -112,6 +112,14 @@ const electronAPI = {
   dialog: {
     selectFolder: (defaultPath?: string): Promise<string | null> => ipcRenderer.invoke('dialog:selectFolder', defaultPath),
   },
+
+  // Skills
+  skills: {
+    list: (): Promise<unknown[]> => ipcRenderer.invoke('skills:list'),
+    getConfig: (): Promise<Record<string, unknown>> => ipcRenderer.invoke('skills:getConfig'),
+    saveConfig: (config: Record<string, unknown>): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke('skills:saveConfig', config),
+  },
 }
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI)

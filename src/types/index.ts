@@ -68,6 +68,12 @@ interface ElectronDialog {
   selectFolder: (defaultPath?: string) => Promise<string | null>
 }
 
+interface ElectronSkills {
+  list: () => Promise<SkillInfo[]>
+  getConfig: () => Promise<SkillsConfig>
+  saveConfig: (config: SkillsConfig) => Promise<{ ok: boolean; error?: string }>
+}
+
 interface ElectronAPI {
   gateway: ElectronGateway
   setup: ElectronSetup
@@ -76,6 +82,7 @@ interface ElectronAPI {
   config: ElectronConfig
   sessions: ElectronSessions
   dialog: ElectronDialog
+  skills: ElectronSkills
 }
 
 declare global {
@@ -143,4 +150,29 @@ export interface SetupConfig {
   gatewayPort?: number
   gatewayToken?: string
   channels?: Record<string, Record<string, string>>
+  skills?: SkillsConfig
 }
+
+export interface SkillInfo {
+  name: string
+  description: string
+  emoji?: string
+  homepage?: string
+  source: 'bundled' | 'local' | 'workspace'
+  enabled: boolean
+  status: 'ready' | 'disabled' | 'blocked' | 'missing'
+  missingReason?: string
+  os?: string[]
+  primaryEnv?: string
+  requiresApiKey: boolean
+  apiKey?: string
+}
+
+export interface SkillEntryConfig {
+  enabled?: boolean
+  apiKey?: string
+  env?: Record<string, string>
+  config?: Record<string, string>
+}
+
+export type SkillsConfig = Record<string, SkillEntryConfig>
