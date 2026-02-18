@@ -129,8 +129,9 @@ export function SkillSettings({ onClose }: SkillSettingsProps) {
             </button>
           </div>
           <div className="settings-body">
-            <div style={{ textAlign: 'center', padding: '3rem 0', opacity: 0.6 }}>
-              加载中...
+            <div className="skill-loading-container">
+              <div className="skill-loading-bar" />
+              <span className="skill-loading-text">正在扫描技能目录...</span>
             </div>
           </div>
         </div>

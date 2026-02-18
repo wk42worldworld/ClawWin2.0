@@ -5,6 +5,7 @@ import { SKILL_CN } from '../../constants/skillCn'
 interface SkillsSetupProps {
   skills: SkillInfo[]
   skillsConfig: SkillsConfig
+  loading?: boolean
   onConfigChange: (config: SkillsConfig) => void
   onBack: () => void
   onNext: () => void
@@ -14,6 +15,7 @@ interface SkillsSetupProps {
 export function SkillsSetup({
   skills,
   skillsConfig,
+  loading,
   onConfigChange,
   onBack,
   onNext,
@@ -73,6 +75,12 @@ export function SkillsSetup({
       <h2 className="setup-title">技能配置</h2>
       <p className="setup-subtitle">选择要启用的技能，部分技能需要额外的 API Key</p>
 
+      {loading ? (
+        <div className="skill-loading-container">
+          <div className="skill-loading-bar" />
+          <span className="skill-loading-text">正在扫描技能目录...</span>
+        </div>
+      ) : (
       <div className="skill-grid">
         {skills.map((skill, idx) => {
           const enabled = isEnabled(skill)
@@ -131,6 +139,7 @@ export function SkillsSetup({
           )
         })}
       </div>
+      )}
 
       <div className="setup-actions">
         <button className="btn-secondary" onClick={onBack}>上一步</button>

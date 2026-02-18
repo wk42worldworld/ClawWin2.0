@@ -101,6 +101,43 @@ body {
   to { transform: rotate(360deg); }
 }
 
+/* 技能加载进度条 */
+.skill-loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 0;
+  gap: 16px;
+}
+.skill-loading-bar {
+  width: 200px;
+  height: 4px;
+  background: var(--bg-tertiary, #333);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+.skill-loading-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -40%;
+  width: 40%;
+  height: 100%;
+  background: var(--accent, #646cff);
+  border-radius: 2px;
+  animation: skill-loading-slide 1.2s ease-in-out infinite;
+}
+.skill-loading-text {
+  font-size: 13px;
+  color: var(--text-secondary, #888);
+}
+@keyframes skill-loading-slide {
+  0% { left: -40%; }
+  100% { left: 100%; }
+}
+
 @keyframes message-pulse {
   0%, 100% { border-color: var(--border-light); }
   50% { border-color: var(--accent); }
@@ -2804,15 +2841,11 @@ body {
 }
 
 .custom-select-dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
   background: #1a1a1a;
   border: 1px solid var(--border);
   border-radius: 10px;
   overflow: hidden;
-  z-index: 100;
+  z-index: 99999;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 

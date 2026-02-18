@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 
 interface Option {
   value: string
@@ -14,26 +15,63 @@ interface CustomSelectProps {
 
 export const CustomSelect: React.FC<CustomSelectProps> = ({ value, options, onChange, className }) => {
   const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null)
+  const triggerRef = useRef<HTMLDivElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   const selected = options.find(o => o.value === value)
 
+  const updatePos = useCallback(() => {
+    if (!triggerRef.current) return
+    const rect = triggerRef.current.getBoundingClientRect()
+    setPos({ top: rect.bottom + 4, left: rect.left, width: rect.width })
+  }, [])
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      const target = e.target as Node
+      if (triggerRef.current?.contains(target)) return
+      if (dropdownRef.current?.contains(target)) return
+      setOpen(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
+  useEffect(() => {
+    if (open) {
+      updatePos()
+      window.addEventListener('scroll', updatePos, true)
+      window.addEventListener('resize', updatePos)
+      return () => {
+        window.removeEventListener('scroll', updatePos, true)
+        window.removeEventListener('resize', updatePos)
+      }
+    }
+  }, [open, updatePos])
+
+  const handleToggle = () => {
+    if (!open) updatePos()
+    setOpen(!open)
+  }
+
   return (
-    <div className={`custom-select-wrapper ${className ?? ''}`} ref={ref}>
-      <div className="custom-select-trigger" onClick={() => setOpen(!open)}>
+    <div className={`custom-select-wrapper ${className ?? ''}`}>
+      <div className="custom-select-trigger" ref={triggerRef} onClick={handleToggle}>
         <span>{selected?.label ?? ''}</span>
         <span className={`custom-select-arrow${open ? ' open' : ''}`}>▸</span>
       </div>
-      {open && (
-        <div className="custom-select-dropdown">
+      {open && pos && createPortal(
+        <div
+          ref={dropdownRef}
+          className="custom-select-dropdown"
+          style={{
+            position: 'fixed',
+            top: pos.top,
+            left: pos.left,
+            width: pos.width,
+          }}
+        >
           {options.map(opt => (
             <div
               key={opt.value}
@@ -43,7 +81,8 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({ value, options, onCh
               {opt.label}
             </div>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

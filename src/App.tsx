@@ -44,6 +44,7 @@ function App() {
   const [showCronManager, setShowCronManager] = useState(false)
   const [setupSkills, setSetupSkills] = useState<SkillInfo[]>([])
   const [setupSkillsConfig, setSetupSkillsConfig] = useState<SkillsConfig>({})
+  const [setupSkillsLoading, setSetupSkillsLoading] = useState(false)
   const [settingsWorkspace, setSettingsWorkspace] = useState(setup.config.workspace ?? '~/openclaw')
   const [responseTimeout, setResponseTimeout] = useState(60000)
   const waitingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -388,9 +389,11 @@ function App() {
               onNext={(channels) => {
                 setup.updateConfig({ channels })
                 // Load skills list before entering skills step
+                setSetupSkillsLoading(true)
                 window.electronAPI.skills.list()
                   .then((list) => setSetupSkills(list))
                   .catch(() => setSetupSkills([]))
+                  .finally(() => setSetupSkillsLoading(false))
                 setup.setStep('skills')
               }}
             />
@@ -400,6 +403,7 @@ function App() {
             <SkillsSetup
               skills={setupSkills}
               skillsConfig={setupSkillsConfig}
+              loading={setupSkillsLoading}
               onConfigChange={(config) => {
                 setSetupSkillsConfig(config)
                 setup.updateConfig({ skills: config })
