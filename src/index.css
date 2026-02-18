@@ -1655,13 +1655,37 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  cursor: pointer;
+}
+
+.provider-card:not(.expanded) .provider-header {
+  border-bottom: none;
+}
+
+.provider-card.expanded .provider-header {
   border-bottom: 1px solid var(--border);
+}
+
+.provider-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.provider-chevron {
+  font-size: 14px;
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+  display: inline-block;
+}
+
+.provider-chevron.open {
+  transform: rotate(90deg);
 }
 
 .provider-name {
   font-weight: 900;
   font-size: 18px;
-  text-transform: uppercase;
   letter-spacing: -0.02em;
 }
 
@@ -1712,7 +1736,6 @@ body {
 .model-name {
   font-size: 16px;
   font-weight: 900;
-  text-transform: uppercase;
   letter-spacing: -0.02em;
 }
 
@@ -1735,6 +1758,44 @@ body {
 
 .custom-url-input {
   padding: 8px 12px 12px;
+}
+
+/* Setup wizard: custom model fields inside .model-list */
+.custom-model-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+}
+
+.custom-model-fields .input-field {
+  flex: none;
+  width: 100%;
+}
+
+.custom-format-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.custom-format-row .custom-format-select {
+  flex: 1;
+  appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.4)' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+
+.custom-format-row .custom-format-select option {
+  background: #2d2d2d;
+  color: #fff;
+}
+
+.custom-format-row .btn-custom-confirm {
+  flex-shrink: 0;
 }
 
 /* ============================================
@@ -2667,7 +2728,6 @@ body {
 .model-settings-provider-name {
   font-weight: 900;
   font-size: 16px;
-  text-transform: uppercase;
   letter-spacing: -0.02em;
 }
 
@@ -2722,6 +2782,15 @@ body {
 .custom-format-select {
   appearance: none;
   cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.4)' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+
+.custom-format-select option {
+  background: #2d2d2d;
+  color: #fff;
 }
 
 .btn-custom-confirm {

@@ -79,7 +79,7 @@ function patchInjectControlUiConfig(content, filePath) {
 
   // 添加 tokenScript 生成（在 script 变量之后）
   // 查找 script 变量赋值结束位置，在其后插入 tokenScript
-  const tokenScriptCode = `\tconst tokenScript = gatewayToken ? \`<script>(function(){try{var k="${SETTINGS_KEY}";var raw=localStorage.getItem(k);var s=raw?JSON.parse(raw):{};if(!s.token){s.token=\${JSON.stringify(gatewayToken)};localStorage.setItem(k,JSON.stringify(s))}}catch(e){}})()<\\/script>\` : '';`
+  const tokenScriptCode = `\tconst tokenScript = gatewayToken ? \`<script>(function(){try{var k="${SETTINGS_KEY}";var raw=localStorage.getItem(k);var s=raw?JSON.parse(raw):{};s.token=\${JSON.stringify(gatewayToken)};localStorage.setItem(k,JSON.stringify(s))}catch(e){}})()<\\/script>\` : '';`
 
   // 在 "if (html.includes" 之前插入 tokenScript
   if (!content.includes('tokenScript')) {

@@ -3,6 +3,11 @@
 !macroend
 
 !macro customInit
+  ; 杀掉旧的 ClawWin.exe 进程（失败也不影响安装继续）
+  nsExec::ExecToLog 'taskkill /F /IM ClawWin.exe'
+  ; 杀掉占用 39527 端口的 gateway 进程
+  nsExec::ExecToLog 'powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 39527 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $$_.OwningProcess -Force -ErrorAction SilentlyContinue }"'
+
   ; 检查 Windows 版本 >= 10
   ${IfNot} ${AtLeastWin10}
     MessageBox MB_OK|MB_ICONSTOP "ClawWin 需要 Windows 10 或更高版本。"
