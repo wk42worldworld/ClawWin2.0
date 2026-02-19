@@ -11,6 +11,7 @@ import { SkillsSetup } from './components/Setup/SkillsSetup'
 import { SetupComplete } from './components/Setup/SetupComplete'
 import { ErrorBoundary } from './components/Common/ErrorBoundary'
 import { Loading } from './components/Common/Loading'
+import { VideoSplash } from './components/Common/VideoSplash'
 import { ModelSettings } from './components/Settings/ModelSettings'
 import { ChannelSettings } from './components/Settings/ChannelSettings'
 import { SkillSettings } from './components/Settings/SkillSettings'
@@ -47,6 +48,10 @@ function App() {
   const [setupSkillsLoading, setSetupSkillsLoading] = useState(false)
   const [settingsWorkspace, setSettingsWorkspace] = useState(setup.config.workspace ?? '~/openclaw')
   const [responseTimeout, setResponseTimeout] = useState(60000)
+  const [splashDismissed, setSplashDismissed] = useState(false)
+  const [showSplashExit, setShowSplashExit] = useState(false)
+  const [splashActive, setSplashActive] = useState(false)
+  const splashActivatedAt = useRef(0)
   const waitingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // 使用 ref 追踪最新的 activeSessionId，避免回调闭包中拿到旧值
@@ -296,6 +301,34 @@ function App() {
     }
   }, [setup, gateway])
 
+  // 网关开始加载时激活视频启动屏
+  useEffect(() => {
+    if (!splashActive && !splashDismissed && !showSetup && !setup.isLoading
+      && (gateway.state === 'starting' || gateway.state === 'restarting' || gateway.state === 'error')) {
+      setSplashActive(true)
+      splashActivatedAt.current = Date.now()
+    }
+  }, [gateway.state, splashActive, splashDismissed, showSetup, setup.isLoading])
+
+  // 网关就绪后：保证至少播放2秒，再触发退场动画
+  useEffect(() => {
+    if (gateway.state === 'ready' && splashActive && !splashDismissed) {
+      const elapsed = Date.now() - splashActivatedAt.current
+      const delay = Math.max(0, 2000 - elapsed)
+      const timer = setTimeout(() => {
+        setShowSplashExit(true)
+        setTimeout(() => {
+          setSplashDismissed(true)
+          setShowSplashExit(false)
+        }, 700)
+      }, delay)
+      return () => clearTimeout(timer)
+    }
+  }, [gateway.state, splashActive, splashDismissed])
+
+  // 视频启动屏：激活后直到dismiss前一直显示
+  const showVideoSplash = splashActive && !splashDismissed
+
   // Loading state
   if (setup.isLoading) {
     return (
@@ -435,6 +468,19 @@ function App() {
     )
   }
 
+  // 视频启动屏：网关正在启动时循环播放
+  if (showVideoSplash || showSplashExit) {
+    return (
+      <ErrorBoundary>
+        <VideoSplash
+          gatewayState={gateway.state}
+          exiting={showSplashExit}
+          onRetry={() => gateway.restart()}
+        />
+      </ErrorBoundary>
+    )
+  }
+
   // Main chat interface
   return (
     <ErrorBoundary>
@@ -443,7 +489,6 @@ function App() {
           <div className="navbar-logo">
             <div className="navbar-brand">
               <span className="navbar-brand-name">ClawWin</span>
-              <div className="navbar-accent-line" />
             </div>
           </div>
         </div>
@@ -452,31 +497,51 @@ function App() {
             <div className="system-sidebar-icons">
               <div className="system-icon-item" style={{animationDelay: '0s'}} onClick={() => setShowModelSettings(true)}>
                 <div className="system-icon-circle">
-                  <span className="system-icon-emoji">🤖</span>
+                  <svg className="system-icon-svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="4" y="4" width="16" height="16" rx="3" />
+                    <circle cx="9" cy="9" r="1" fill="currentColor" stroke="none" />
+                    <circle cx="15" cy="9" r="1" fill="currentColor" stroke="none" />
+                    <path d="M9 15c0 0 1.5 2 3 2s3-2 3-2" />
+                    <line x1="4" y1="12" x2="2" y2="12" />
+                    <line x1="22" y1="12" x2="20" y2="12" />
+                    <line x1="12" y1="4" x2="12" y2="2" />
+                  </svg>
                 </div>
                 <span className="system-icon-label">大模型</span>
               </div>
               <div className="system-icon-item" style={{animationDelay: '0.05s'}} onClick={() => setShowChannelSettings(true)}>
                 <div className="system-icon-circle">
-                  <span className="system-icon-emoji">💬</span>
+                  <svg className="system-icon-svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    <line x1="8" y1="9" x2="16" y2="9" />
+                    <line x1="8" y1="13" x2="13" y2="13" />
+                  </svg>
                 </div>
                 <span className="system-icon-label">聊天工具</span>
               </div>
               <div className="system-icon-item" style={{animationDelay: '0.10s'}} onClick={() => setShowCronManager(true)}>
                 <div className="system-icon-circle">
-                  <span className="system-icon-emoji">⏰</span>
+                  <svg className="system-icon-svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="9" />
+                    <polyline points="12 7 12 12 15.5 14" />
+                  </svg>
                 </div>
                 <span className="system-icon-label">定时任务</span>
               </div>
               <div className="system-icon-item" style={{animationDelay: '0.15s'}} onClick={() => setShowSkills(true)}>
                 <div className="system-icon-circle">
-                  <span className="system-icon-emoji">🧩</span>
+                  <svg className="system-icon-svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14.5 6.5a2.5 2.5 0 0 0-5 0v3h-3a2.5 2.5 0 0 0 0 5h3v3a2.5 2.5 0 0 0 5 0v-3h3a2.5 2.5 0 0 0 0-5h-3z" />
+                  </svg>
                 </div>
                 <span className="system-icon-label">技能</span>
               </div>
               <div className="system-icon-item" style={{animationDelay: '0.20s'}} onClick={() => setShowSettings(true)}>
                 <div className="system-icon-circle">
-                  <span className="system-icon-emoji">⚙️</span>
+                  <svg className="system-icon-svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1.08z" />
+                  </svg>
                 </div>
                 <span className="system-icon-label">设置</span>
               </div>

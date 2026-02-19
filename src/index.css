@@ -315,23 +315,15 @@ body {
 
 .navbar-brand {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
 }
 
 .navbar-brand-name {
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
   color: rgba(255, 255, 255, 0.9);
-}
-
-.navbar-accent-line {
-  height: 4px;
-  width: 64px;
-  background: var(--accent);
-  border-radius: 100px;
-  margin-top: 6px;
-  box-shadow: 0 0 8px var(--accent-glow);
 }
 
 .navbar-status {
@@ -389,28 +381,32 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease-out;
+  transform-origin: center center;
+  will-change: transform;
   overflow: hidden;
   flex-shrink: 0;
 }
 
 .system-icon-circle:hover {
-  background: white;
+  background: rgba(0, 162, 224, 0.2);
+  border-color: var(--accent);
   transform: scale(1.1);
-  box-shadow: 0 0 25px rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 20px var(--accent-glow);
 }
 
 .system-icon-circle:active { transform: scale(0.9); }
 
-.system-icon-emoji {
-  font-size: 24px;
-  line-height: 1;
-  transition: color 0.3s;
-  user-select: none;
-  transform: translateY(-1px);
+.system-icon-svg {
+  color: rgba(255, 255, 255, 0.85);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display: block;
+  flex-shrink: 0;
 }
 
-.system-icon-circle:hover .system-icon-emoji { filter: grayscale(0); }
+.system-icon-circle:hover .system-icon-svg {
+  color: var(--accent);
+}
 
 .system-icon-label {
   font-size: 12px;
@@ -3405,4 +3401,156 @@ body {
   background: rgba(239, 68, 68, 0.1);
   color: var(--error);
   border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* ============================================
+   Video Splash Screen
+   ============================================ */
+.video-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: var(--bg-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.video-splash::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 36px;
+  -webkit-app-region: drag;
+  z-index: 10;
+}
+
+.video-splash-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.video-splash-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(45, 45, 45, 0.1) 0%,
+    rgba(45, 45, 45, 0.0) 40%,
+    rgba(45, 45, 45, 0.4) 80%,
+    rgba(45, 45, 45, 0.85) 100%
+  );
+  pointer-events: none;
+}
+
+.video-splash-status {
+  position: absolute;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  z-index: 2;
+  animation: subtleIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.video-splash-text {
+  font-size: 16px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  letter-spacing: 0.1em;
+  margin: 0;
+}
+
+.video-splash-progress {
+  width: 200px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.video-splash-progress-bar {
+  position: absolute;
+  top: 0;
+  left: -40%;
+  width: 40%;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  animation: skill-loading-slide 1.2s ease-in-out infinite;
+}
+
+.video-splash-error {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.video-splash-error-card {
+  text-align: center;
+  padding: 40px;
+  background: rgba(45, 45, 45, 0.95);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-lg);
+  max-width: 400px;
+}
+
+.video-splash-error-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--error);
+  font-size: 24px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.video-splash-error-card h3 {
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--text-primary);
+  margin: 0 0 8px;
+}
+
+.video-splash-error-card p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 0 0 24px;
+}
+
+@keyframes videoSplashExit {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.05);
+  }
+}
+
+.video-splash-exit {
+  animation: videoSplashExit 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  pointer-events: none;
 }
