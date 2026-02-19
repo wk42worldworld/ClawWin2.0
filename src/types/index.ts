@@ -68,10 +68,29 @@ interface ElectronDialog {
   selectFolder: (defaultPath?: string) => Promise<string | null>
 }
 
+interface ElectronFile {
+  getPath: (file: File) => string
+}
+
 interface ElectronSkills {
   list: () => Promise<SkillInfo[]>
   getConfig: () => Promise<SkillsConfig>
   saveConfig: (config: SkillsConfig) => Promise<{ ok: boolean; error?: string }>
+}
+
+interface ElectronOllama {
+  getStatus: () => Promise<OllamaStatus>
+  install: () => Promise<void>
+  start: () => Promise<void>
+  stop: () => Promise<void>
+  listLocalModels: () => Promise<string[]>
+  downloadModel: (modelId: string) => Promise<void>
+  deleteModel: (modelId: string) => Promise<void>
+  applyModel: (modelId: string) => Promise<void>
+  getHardwareInfo: () => Promise<HardwareInfo>
+  cancelDownload: () => Promise<void>
+  onProgress: (callback: (state: LocalModelState) => void) => () => void
+  onStatusChange: (callback: (status: OllamaStatus) => void) => () => void
 }
 
 interface ElectronAPI {
@@ -82,7 +101,9 @@ interface ElectronAPI {
   config: ElectronConfig
   sessions: ElectronSessions
   dialog: ElectronDialog
+  file: ElectronFile
   skills: ElectronSkills
+  ollama: ElectronOllama
 }
 
 declare global {
@@ -104,10 +125,18 @@ export interface GatewayLog {
   message: string
 }
 
+export interface ChatAttachment {
+  type: 'image' | 'file'
+  fileName?: string
+  filePath: string       // 本地完整路径
+  mimeType?: string
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant' | 'system'
   content: string
+  attachments?: ChatAttachment[]
   timestamp: number
   status?: 'sending' | 'streaming' | 'done' | 'error'
 }
@@ -178,3 +207,42 @@ export interface SkillEntryConfig {
 }
 
 export type SkillsConfig = Record<string, SkillEntryConfig>
+
+// ===== Ollama / 本地模型 =====
+
+export interface OllamaStatus {
+  installed: boolean
+  running: boolean
+  version?: string
+}
+
+export interface LocalModelInfo {
+  id: string
+  name: string
+  description: string
+  size: string
+  sizeBytes: number
+  minMemory: string
+  minMemoryBytes: number
+  ggufRepo: string
+  ggufFile: string
+  tags: string[]
+}
+
+export interface LocalModelState {
+  id: string
+  status: 'available' | 'downloading' | 'importing' | 'ready' | 'error'
+  progress?: number
+  downloadedBytes?: number
+  totalBytes?: number
+  currentFile?: number
+  totalFileCount?: number
+  error?: string
+}
+
+export interface HardwareInfo {
+  totalMemory: number
+  freeMemory: number
+  gpuName?: string
+  gpuMemory?: number
+}

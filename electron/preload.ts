@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 
 export type GatewayState = 'starting' | 'ready' | 'error' | 'stopped' | 'restarting'
 
@@ -113,12 +113,43 @@ const electronAPI = {
     selectFolder: (defaultPath?: string): Promise<string | null> => ipcRenderer.invoke('dialog:selectFolder', defaultPath),
   },
 
+  // File utilities (Electron 32+ removed File.path, use webUtils instead)
+  file: {
+    getPath: (file: File): string => webUtils.getPathForFile(file),
+  },
+
   // Skills
   skills: {
     list: (): Promise<unknown[]> => ipcRenderer.invoke('skills:list'),
     getConfig: (): Promise<Record<string, unknown>> => ipcRenderer.invoke('skills:getConfig'),
     saveConfig: (config: Record<string, unknown>): Promise<{ ok: boolean; error?: string }> =>
       ipcRenderer.invoke('skills:saveConfig', config),
+  },
+
+  // Ollama
+  ollama: {
+    getStatus: (): Promise<{ installed: boolean; running: boolean; version?: string }> =>
+      ipcRenderer.invoke('ollama:getStatus'),
+    install: (): Promise<void> => ipcRenderer.invoke('ollama:install'),
+    start: (): Promise<void> => ipcRenderer.invoke('ollama:start'),
+    stop: (): Promise<void> => ipcRenderer.invoke('ollama:stop'),
+    listLocalModels: (): Promise<string[]> => ipcRenderer.invoke('ollama:listModels'),
+    downloadModel: (modelId: string): Promise<void> => ipcRenderer.invoke('ollama:downloadModel', modelId),
+    deleteModel: (modelId: string): Promise<void> => ipcRenderer.invoke('ollama:deleteModel', modelId),
+    applyModel: (modelId: string): Promise<void> => ipcRenderer.invoke('ollama:applyModel', modelId),
+    getHardwareInfo: (): Promise<{ totalMemory: number; freeMemory: number; gpuName?: string; gpuMemory?: number }> =>
+      ipcRenderer.invoke('ollama:getHardware'),
+    cancelDownload: (): Promise<void> => ipcRenderer.invoke('ollama:cancelDownload'),
+    onProgress: (callback: (state: { id: string; status: string; progress?: number; downloadedBytes?: number; totalBytes?: number; error?: string }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, state: { id: string; status: string; progress?: number; downloadedBytes?: number; totalBytes?: number; error?: string }) => callback(state)
+      ipcRenderer.on('ollama:progress', handler)
+      return () => ipcRenderer.removeListener('ollama:progress', handler)
+    },
+    onStatusChange: (callback: (status: { installed: boolean; running: boolean; version?: string }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, status: { installed: boolean; running: boolean; version?: string }) => callback(status)
+      ipcRenderer.on('ollama:statusChange', handler)
+      return () => ipcRenderer.removeListener('ollama:statusChange', handler)
+    },
   },
 }
 

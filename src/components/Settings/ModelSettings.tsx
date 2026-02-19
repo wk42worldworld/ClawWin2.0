@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { MODEL_PROVIDERS } from '../../hooks/useSetup'
 import type { ModelProvider, ModelInfo } from '../../types'
 import { CustomSelect } from '../Common/CustomSelect'
+import { LocalModelSettings } from './LocalModelSettings'
 
 interface ModelSettingsProps {
   currentProvider?: string
@@ -30,6 +31,7 @@ export const ModelSettings: React.FC<ModelSettingsProps> = ({
   onClose,
   onSaved,
 }) => {
+  const [activeTab, setActiveTab] = useState<'cloud' | 'local'>('cloud')
   const [selectedProvider, setSelectedProvider] = useState<string>(currentProvider ?? '')
   const [selectedModel, setSelectedModel] = useState<string>(currentModel ?? '')
   const [apiKey, setApiKey] = useState<string>('')
@@ -182,7 +184,20 @@ export const ModelSettings: React.FC<ModelSettingsProps> = ({
     <div className="settings-overlay" onClick={onClose}>
       <div className="settings-panel-wide" onClick={(e) => e.stopPropagation()}>
         <div className="settings-header">
-          <h2>大模型配置</h2>
+          <div className="model-settings-tabs">
+            <button
+              className={`model-settings-tab${activeTab === 'cloud' ? ' active' : ''}`}
+              onClick={() => setActiveTab('cloud')}
+            >
+              云端模型
+            </button>
+            <button
+              className={`model-settings-tab${activeTab === 'local' ? ' active' : ''}`}
+              onClick={() => setActiveTab('local')}
+            >
+              本地模型
+            </button>
+          </div>
           <button className="settings-close" onClick={onClose}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="18" y1="6" x2="6" y2="18" />
@@ -191,6 +206,8 @@ export const ModelSettings: React.FC<ModelSettingsProps> = ({
           </button>
         </div>
 
+        {activeTab === 'cloud' ? (
+          <>
         <div className="model-settings-body">
           {/* Current model display */}
           <div className="model-settings-current">
@@ -362,6 +379,10 @@ export const ModelSettings: React.FC<ModelSettingsProps> = ({
             <div className="model-settings-footer-hint">请选择一个厂商和模型</div>
           )}
         </div>
+          </>
+        ) : (
+          <LocalModelSettings onSaved={onSaved} />
+        )}
       </div>
     </div>
   )

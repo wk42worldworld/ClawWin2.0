@@ -7,11 +7,13 @@ import { isFirstRun, getOpenclawConfigPath, writeSetupConfig, validateApiKey } f
 import { getNodePath, getOpenclawPath } from './node-runtime'
 import { signDeviceAuth, type DeviceAuthParams } from './device-identity'
 import { scanSkills, getSkillsConfig, saveSkillsConfig } from './skills-scanner'
+import { OllamaManager } from './ollama-manager'
 
 let mainWindow: BrowserWindow | null = null
 let gatewayManager: GatewayManager | null = null
 let tray: Tray | null = null
 let isQuitting = false
+let ollamaManager: OllamaManager | null = null
 
 const DIST = path.join(__dirname, '../dist')
 const PRELOAD = path.join(__dirname, 'preload.js')
@@ -524,6 +526,18 @@ function setupIPC() {
   ipcMain.handle('skills:saveConfig', (_event, config: Record<string, unknown>) => {
     return saveSkillsConfig(config as Record<string, { enabled?: boolean; apiKey?: string; env?: Record<string, string> }>)
   })
+
+  // ===== Ollama IPC handlers =====
+  ipcMain.handle('ollama:getStatus', () => ollamaManager?.getStatus() ?? { installed: false, running: false })
+  ipcMain.handle('ollama:install', async () => { await ollamaManager?.install() })
+  ipcMain.handle('ollama:start', async () => { await ollamaManager?.start() })
+  ipcMain.handle('ollama:stop', async () => { await ollamaManager?.stop() })
+  ipcMain.handle('ollama:listModels', () => ollamaManager?.listLocalModels() ?? [])
+  ipcMain.handle('ollama:downloadModel', async (_event, modelId: string) => { await ollamaManager?.downloadModel(modelId) })
+  ipcMain.handle('ollama:deleteModel', async (_event, modelId: string) => { await ollamaManager?.deleteModel(modelId) })
+  ipcMain.handle('ollama:applyModel', async (_event, modelId: string) => { await ollamaManager?.applyModel(modelId) })
+  ipcMain.handle('ollama:getHardware', () => ollamaManager?.getHardwareInfo() ?? { totalMemory: 0, freeMemory: 0 })
+  ipcMain.handle('ollama:cancelDownload', () => { ollamaManager?.cancelDownload() })
 }
 
 function initGatewayManager() {
@@ -546,13 +560,29 @@ function initGatewayManager() {
 app.whenReady().then(async () => {
   setupIPC()
   initGatewayManager()
+  ollamaManager = new OllamaManager()
 
   // Auto-start gateway if not first run (before creating window so state is ready)
   if (!isFirstRun()) {
     gatewayManager?.start()
+
+    // 如果配置的是本地模型（Ollama），自动启动 Ollama 服务
+    try {
+      const configPath = getOpenclawConfigPath()
+      if (fs.existsSync(configPath)) {
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
+        const primaryModel = config?.agents?.defaults?.model?.primary ?? ''
+        if (primaryModel.startsWith('ollama/')) {
+          ollamaManager?.start().catch((err) => {
+            console.error('Auto-start Ollama failed:', err)
+          })
+        }
+      }
+    } catch { /* ignore config read errors */ }
   }
 
   createWindow()
+  ollamaManager?.setMainWindow(mainWindow)
   createTray()
 })
 

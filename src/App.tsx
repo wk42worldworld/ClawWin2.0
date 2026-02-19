@@ -19,7 +19,7 @@ import { CronManager } from './components/Settings/CronManager'
 import { useGateway } from './hooks/useGateway'
 import { useWebSocket } from './hooks/useWebSocket'
 import { useSetup, type SetupStep } from './hooks/useSetup'
-import type { ChatMessage, ChatSession, ModelProvider, ModelInfo, SkillInfo, SkillsConfig } from './types'
+import type { ChatMessage, ChatSession, ChatAttachment, ModelProvider, ModelInfo, SkillInfo, SkillsConfig } from './types'
 
 const SETUP_STEPS: SetupStep[] = ['welcome', 'model', 'apikey', 'workspace', 'gateway', 'channels', 'skills', 'complete']
 
@@ -212,7 +212,7 @@ function App() {
   )
 
   const handleSend = useCallback(
-    (content: string) => {
+    (content: string, attachments?: ChatAttachment[]) => {
       if (!activeSessionId) {
         // Auto-create session
         const session: ChatSession = {
@@ -226,6 +226,7 @@ function App() {
           id: generateId(),
           role: 'user',
           content,
+          attachments,
           timestamp: Date.now(),
           status: 'done',
         }
@@ -244,6 +245,7 @@ function App() {
         id: generateId(),
         role: 'user',
         content,
+        attachments,
         timestamp: Date.now(),
         status: 'done',
       }

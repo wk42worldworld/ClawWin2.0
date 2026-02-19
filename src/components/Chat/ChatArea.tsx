@@ -1,11 +1,11 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react'
 import { MessageBubble } from './MessageBubble'
 import { InputArea } from './InputArea'
-import type { ChatMessage } from '../../types'
+import type { ChatMessage, ChatAttachment } from '../../types'
 
 interface ChatAreaProps {
   messages: ChatMessage[]
-  onSend: (content: string) => void
+  onSend: (content: string, attachments?: ChatAttachment[]) => void
   disabled?: boolean
   gatewayState: string
   isWaiting?: boolean

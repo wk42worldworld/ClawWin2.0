@@ -187,9 +187,8 @@ export function useWebSocket({ url, token, enabled }: UseWebSocketOptions): UseW
 
     const idempotencyKey = generateId()
 
-    // GatewayClient.request 会自动处理：
-    // - 握手完成前的请求会被缓冲，握手完成后自动发送
-    // - WebSocket 未连接时会 reject
+    // File paths are embedded in the content text.
+    // Backend's detectImageReferences will auto-detect and load them.
     client.request('chat.send', {
       sessionKey,
       message: content,
