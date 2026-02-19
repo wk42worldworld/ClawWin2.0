@@ -70,6 +70,7 @@ interface ElectronDialog {
 
 interface ElectronFile {
   getPath: (file: File) => string
+  copyToWorkspace: (srcPath: string) => Promise<{ ok: boolean; destPath?: string; error?: string }>
 }
 
 interface ElectronSkills {
@@ -130,6 +131,7 @@ export interface ChatAttachment {
   fileName?: string
   filePath: string       // 本地完整路径
   mimeType?: string
+  content?: string       // base64 内容（图片用，发送给 gateway）
 }
 
 export interface ChatMessage {

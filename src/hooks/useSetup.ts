@@ -184,9 +184,40 @@ export function useSetup(): UseSetupReturn {
     Promise.all([
       window.electronAPI.setup.isFirstRun(),
       fetchDefaultWorkspace(),
-    ]).then(([first, defaultWorkspace]) => {
+      window.electronAPI.config.readConfig(),
+    ]).then(([first, defaultWorkspace, savedConfig]) => {
       setIsFirstRun(first)
-      setConfig((prev) => ({ ...prev, workspace: prev.workspace ?? defaultWorkspace }))
+      setConfig((prev) => {
+        const merged = { ...prev, workspace: prev.workspace ?? defaultWorkspace }
+        // Restore provider/model info from saved openclaw config
+        if (savedConfig && typeof savedConfig === 'object') {
+          const sc = savedConfig as Record<string, unknown>
+          // agents.defaults.model.primary = "provider/modelId"
+          const agents = sc.agents as Record<string, unknown> | undefined
+          const defaults = agents?.defaults as Record<string, unknown> | undefined
+          const modelCfg = defaults?.model as Record<string, unknown> | undefined
+          const primary = modelCfg?.primary as string | undefined
+          if (primary && primary.includes('/')) {
+            const slashIdx = primary.indexOf('/')
+            merged.provider = primary.slice(0, slashIdx)
+            merged.modelId = primary.slice(slashIdx + 1)
+            // Get display name from agents.defaults.models["provider/modelId"].alias
+            const modelsMap = defaults?.models as Record<string, { alias?: string }> | undefined
+            merged.modelName = modelsMap?.[primary]?.alias || merged.modelId
+          }
+          // Get baseUrl/apiFormat from models.providers
+          if (merged.provider) {
+            const models = sc.models as Record<string, unknown> | undefined
+            const providers = models?.providers as Record<string, { baseUrl?: string; api?: string }> | undefined
+            const provCfg = providers?.[merged.provider]
+            if (provCfg) {
+              merged.baseUrl = provCfg.baseUrl
+              merged.apiFormat = provCfg.api
+            }
+          }
+        }
+        return merged
+      })
       setIsLoading(false)
     }).catch((err) => {
       console.error('[useSetup] 初始化失败:', err)

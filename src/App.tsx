@@ -213,11 +213,20 @@ function App() {
 
   const handleSend = useCallback(
     (content: string, attachments?: ChatAttachment[]) => {
+      // Extract a meaningful title (exclude file paths appended by InputArea)
+      const titleText = attachments?.length
+        ? content.split('\n').filter((line) => {
+            const trimmed = line.trim()
+            return !attachments.some((a) => a.filePath && a.filePath === trimmed)
+          }).join(' ').trim()
+        : content
+      const title = titleText.slice(0, 30) || (attachments?.length ? `${attachments[0].fileName || '文件'}` : '新对话')
+
       if (!activeSessionId) {
         // Auto-create session
         const session: ChatSession = {
           id: generateId(),
-          title: content.slice(0, 30) || '新对话',
+          title,
           messages: [],
           createdAt: Date.now(),
           updatedAt: Date.now(),
@@ -237,7 +246,7 @@ function App() {
         setActiveSessionId(session.id)
         startWaiting()
         // 每个前端会话用自己的 id 作为 Gateway sessionKey，避免历史污染
-        ws.sendMessage(session.id, content)
+        ws.sendMessage(session.id, content, attachments)
         return
       }
 
@@ -253,10 +262,10 @@ function App() {
       setSessions((prev) =>
         prev.map((s) => {
           if (s.id !== activeSessionId) return s
-          const title = s.messages.length === 0 ? content.slice(0, 30) : s.title
+          const sessionTitle = s.messages.length === 0 ? title : s.title
           return {
             ...s,
-            title,
+            title: sessionTitle,
             messages: [...s.messages, userMsg],
             updatedAt: Date.now(),
           }
@@ -265,7 +274,7 @@ function App() {
 
       startWaiting()
       // 每个前端会话用自己的 id 作为 Gateway sessionKey
-      ws.sendMessage(activeSessionId, content)
+      ws.sendMessage(activeSessionId, content, attachments)
     },
     [activeSessionId, ws, startWaiting]
   )
@@ -616,7 +625,14 @@ function App() {
               </div>
               <div className="settings-section">
                 <h3>模型</h3>
-                <p className="settings-value">{selectedProviderObj?.name ?? setup.config.provider} / {selectedModelObj?.name ?? setup.config.modelName}</p>
+                <p className="settings-value">
+                  {selectedProviderObj?.name
+                    ?? setup.providers.find(p => p.id === setup.config.provider)?.name
+                    ?? setup.config.provider
+                    ?? '未配置'}
+                  {' / '}
+                  {selectedModelObj?.name ?? setup.config.modelName ?? '未选择'}
+                </p>
               </div>
               <div className="settings-section">
                 <h3>网关服务</h3>

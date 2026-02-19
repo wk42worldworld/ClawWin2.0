@@ -42,6 +42,20 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({
     google: { label: '需科学上网', className: 'tag-international' },
   }
 
+  const PROVIDER_KEY_URLS: Record<string, string> = {
+    zhipu: 'https://open.bigmodel.cn/usercenter/apikeys',
+    deepseek: 'https://platform.deepseek.com/api_keys',
+    qwen: 'https://dashscope.console.aliyun.com/apiKey',
+    moonshot: 'https://platform.moonshot.cn/console/api-keys',
+    minimax: 'https://platform.minimaxi.com/user-center/basic-information/interface-key',
+    siliconflow: 'https://cloud.siliconflow.cn/account/ak',
+    nvidia: 'https://build.nvidia.com/',
+    openai: 'https://platform.openai.com/api-keys',
+    anthropic: 'https://console.anthropic.com/settings/keys',
+    google: 'https://aistudio.google.com/apikey',
+    xai: 'https://console.x.ai/',
+  }
+
   const handleProviderToggle = (providerId: string) => {
     setExpandedProvider((prev) => (prev === providerId ? null : providerId))
     setCustomSelected(false)
@@ -94,6 +108,18 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({
                     <span className={`provider-tag ${PROVIDER_TAGS[provider.id].className}`}>
                       {PROVIDER_TAGS[provider.id].label}
                     </span>
+                  )}
+                  {PROVIDER_KEY_URLS[provider.id] && (
+                    <button
+                      className="provider-key-link"
+                      title="获取 API Key"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        window.electronAPI.shell.openExternal(PROVIDER_KEY_URLS[provider.id])
+                      }}
+                    >
+                      获取 Key
+                    </button>
                   )}
                   <span className={`provider-chevron${isExpanded ? ' open' : ''}`}>▸</span>
                 </div>

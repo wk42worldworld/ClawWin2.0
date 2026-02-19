@@ -52,6 +52,31 @@ const IMessageLogo = () => (
     <path d="M12 2C6.477 2 2 5.813 2 10.5c0 2.34 1.094 4.46 2.875 6.031-.188 1.375-.875 2.625-.875 2.625s2.563-.313 4.063-1.281A12.1 12.1 0 0012 19c5.523 0 10-3.813 10-8.5S17.523 2 12 2z" fill="#34C759"/>
   </svg>
 )
+const DingTalkLogo = () => (
+  <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
+    <rect width="24" height="24" rx="4" fill="#0089FF"/>
+    <path d="M17.62 12.24c-.1-.04-1.72-.67-1.95-.75-.23-.08-.44-.12-.56.12-.15.27-.52.74-.65.9-.12.14-.25.16-.46.06-.22-.1-.9-.34-1.72-1.06-.64-.57-1.07-1.27-1.19-1.48-.13-.22-.01-.33.1-.44.1-.1.22-.25.33-.38.1-.13.14-.22.22-.36.07-.15.03-.27-.02-.38-.05-.1-.55-1.35-.76-1.84-.2-.48-.4-.42-.56-.42h-.47c-.16 0-.42.06-.65.3-.22.23-.86.84-.86 2.05s.88 2.38 1 2.54c.13.16 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.46-.6 1.67-1.17.2-.58.2-1.07.14-1.17-.06-.1-.22-.16-.46-.27z" fill="white"/>
+  </svg>
+)
+const WeChatLogo = () => (
+  <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
+    <path d="M8.69 3C4.96 3 2 5.57 2 8.73c0 1.77.93 3.36 2.38 4.42L3.88 15l1.98-.99c.63.23 1.3.38 2.01.44a5.9 5.9 0 01-.18-1.42C7.69 9.9 10.31 7.3 13.6 7.3c.36 0 .71.03 1.05.08C14.01 4.87 11.62 3 8.69 3z" fill="#51C332"/>
+    <circle cx="6.8" cy="7.5" r=".85" fill="white"/>
+    <circle cx="10.5" cy="7.5" r=".85" fill="white"/>
+    <path d="M22 13.03c0-2.64-2.65-4.78-5.91-4.78s-5.91 2.14-5.91 4.78c0 2.64 2.65 4.78 5.91 4.78.65 0 1.27-.09 1.85-.25l1.66.83-.38-1.56C20.87 16 22 14.62 22 13.03z" fill="#51C332"/>
+    <circle cx="14.2" cy="12.5" r=".7" fill="white"/>
+    <circle cx="17.8" cy="12.5" r=".7" fill="white"/>
+  </svg>
+)
+const QQLogo = () => (
+  <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
+    <path d="M12 2C7.2 2 4 5.36 4 9.6c0 1.52.32 2.96.88 4.24-.28.88-.72 1.76-.88 2.16.56.24 1.48-.08 2.16-.4.64.88 1.2 1.52 1.6 1.84-.08.4-.24 1.04-.24 1.36.64.16 1.44-.24 2-.56C10.28 18.72 11.04 19 12 19s1.72-.28 2.48-.76c.56.32 1.36.72 2 .56 0-.32-.16-.96-.24-1.36.4-.32.96-.96 1.6-1.84.68.32 1.6.64 2.16.4-.16-.4-.6-1.28-.88-2.16.56-1.28.88-2.72.88-4.24C20 5.36 16.8 2 12 2z" fill="#12B7F5"/>
+    <ellipse cx="9.5" cy="9" rx="1.2" ry="1.5" fill="white"/>
+    <ellipse cx="14.5" cy="9" rx="1.2" ry="1.5" fill="white"/>
+    <ellipse cx="9.5" cy="9.2" rx=".6" ry=".8" fill="#333"/>
+    <ellipse cx="14.5" cy="9.2" rx=".6" ry=".8" fill="#333"/>
+  </svg>
+)
 
 /** 渠道定义 */
 export interface ChannelDef {
@@ -124,6 +149,39 @@ export const CHANNELS: ChannelDef[] = [
     logo: SignalLogo,
     fields: [
       { key: 'account', label: '账号', placeholder: '+86...', required: false },
+    ],
+  },
+  {
+    id: 'dingtalk',
+    label: '钉钉',
+    blurb: '钉钉开放平台 Stream 模式机器人',
+    logo: DingTalkLogo,
+    fields: [
+      { key: 'clientId', label: 'Client ID (AppKey)', placeholder: 'dingxxxxxxx', required: true },
+      { key: 'clientSecret', label: 'Client Secret (AppSecret)', placeholder: '请输入 AppSecret', required: true },
+    ],
+  },
+  {
+    id: 'wechat',
+    label: '微信（企业微信）',
+    blurb: '通过企业微信应用 API 接收和发送消息',
+    logo: WeChatLogo,
+    fields: [
+      { key: 'corpId', label: '企业 ID (CorpID)', placeholder: 'ww...', required: true },
+      { key: 'agentId', label: '应用 AgentId', placeholder: '1000002', required: true },
+      { key: 'secret', label: '应用 Secret', placeholder: '请输入应用 Secret', required: true },
+      { key: 'token', label: '回调 Token', placeholder: '请输入 Token（可选）', required: false },
+      { key: 'encodingAESKey', label: 'EncodingAESKey', placeholder: '请输入 EncodingAESKey（可选）', required: false },
+    ],
+  },
+  {
+    id: 'qq',
+    label: 'QQ',
+    blurb: 'QQ 开放平台官方机器人 API',
+    logo: QQLogo,
+    fields: [
+      { key: 'appId', label: 'App ID', placeholder: '请输入 Bot AppID', required: true },
+      { key: 'secret', label: 'App Secret', placeholder: '请输入 App Secret', required: true },
     ],
   },
   {

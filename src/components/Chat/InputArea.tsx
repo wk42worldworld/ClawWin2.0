@@ -23,6 +23,7 @@ interface AttachmentWithPreview {
   fileName: string
   filePath: string
   mimeType?: string
+  content?: string       // base64 for images
   /** blob URL for image thumbnail; undefined for non-image files */
   previewUrl?: string
   size: number
@@ -54,6 +55,21 @@ export const InputArea: React.FC<InputAreaProps> = ({
     errorTimerRef.current = setTimeout(() => setError(null), 3000)
   }, [])
 
+  // Read a file as base64 string
+  const readFileAsBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const result = reader.result as string
+        // Strip data URL prefix: "data:image/png;base64,..."
+        const base64 = result.split(',')[1] || ''
+        resolve(base64)
+      }
+      reader.onerror = () => reject(reader.error)
+      reader.readAsDataURL(file)
+    })
+  }
+
   // Process files: extract local file paths via Electron's file.path
   const processFiles = useCallback(
     (files: FileList | File[]) => {
@@ -71,9 +87,8 @@ export const InputArea: React.FC<InputAreaProps> = ({
         showError(`已达上限，仅添加了前 ${remainingSlots} 个文件`)
       }
 
-      const newAttachments: AttachmentWithPreview[] = []
-      for (const file of filesToProcess) {
-        // Electron 32+ removed File.path; use webUtils via preload
+      // Process each file (async for image base64 reading)
+      const processOne = async (file: File): Promise<AttachmentWithPreview | null> => {
         let filePath = ''
         try {
           filePath = window.electronAPI.file.getPath(file)
@@ -82,25 +97,39 @@ export const InputArea: React.FC<InputAreaProps> = ({
         }
         if (!filePath) {
           showError(`无法获取文件路径: ${file.name}，请使用拖放或文件选择`)
-          continue
+          return null
         }
 
         const isImage = isImageFile(file.type, file.name)
         const previewUrl = isImage ? URL.createObjectURL(file) : undefined
 
-        newAttachments.push({
+        // Read base64 for images so gateway can pass them to AI model
+        let content: string | undefined
+        if (isImage) {
+          try {
+            content = await readFileAsBase64(file)
+          } catch {
+            // non-critical: image will still show path in text
+          }
+        }
+
+        return {
           type: isImage ? 'image' : 'file',
           fileName: file.name,
           filePath,
           mimeType: file.type || undefined,
+          content,
           previewUrl,
           size: file.size,
-        })
+        }
       }
 
-      if (newAttachments.length > 0) {
-        setAttachments((prev) => [...prev, ...newAttachments])
-      }
+      Promise.all(filesToProcess.map(processOne)).then((results) => {
+        const newAttachments = results.filter((a): a is AttachmentWithPreview => a !== null)
+        if (newAttachments.length > 0) {
+          setAttachments((prev) => [...prev, ...newAttachments])
+        }
+      })
     },
     [attachments.length, showError]
   )
@@ -115,28 +144,39 @@ export const InputArea: React.FC<InputAreaProps> = ({
     })
   }, [])
 
-  // Send: append file paths to message text for backend detection
-  const handleSend = useCallback(() => {
+  // Send: copy files to workspace, append paths to message text + pass attachments
+  const handleSend = useCallback(async () => {
     const trimmed = input.trim()
     const hasText = trimmed.length > 0
     const hasAtt = attachments.length > 0
 
     if ((!hasText && !hasAtt) || disabled) return
 
-    // Build content with file paths appended
+    // Copy files to workspace so gateway can access them
+    const resolvedAttachments = hasAtt
+      ? await Promise.all(
+          attachments.map(async (a) => {
+            const result = await window.electronAPI.file.copyToWorkspace(a.filePath)
+            return { ...a, filePath: result.ok && result.destPath ? result.destPath : a.filePath }
+          })
+        )
+      : []
+
+    // Build content with workspace paths appended
     let content = trimmed
-    if (hasAtt) {
-      const paths = attachments.map((a) => a.filePath).join('\n')
+    if (resolvedAttachments.length > 0) {
+      const paths = resolvedAttachments.map((a) => a.filePath).join('\n')
       content = content ? `${content}\n${paths}` : paths
     }
 
-    // Build ChatAttachment[] for UI display (strip preview fields)
-    const chatAttachments: ChatAttachment[] | undefined = hasAtt
-      ? attachments.map(({ type, fileName, filePath, mimeType }) => ({
+    // Build ChatAttachment[] with base64 content for images
+    const chatAttachments: ChatAttachment[] | undefined = resolvedAttachments.length > 0
+      ? resolvedAttachments.map(({ type, fileName, filePath, mimeType, content: base64 }) => ({
           type,
           fileName,
           filePath,
           mimeType,
+          content: base64,
         }))
       : undefined
 

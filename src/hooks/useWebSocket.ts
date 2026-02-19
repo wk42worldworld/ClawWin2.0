@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { GatewayClient, type GatewayEventFrame, type GatewayHelloOk } from '../lib/gateway-protocol'
-import type { ChatMessage } from '../types'
+import type { ChatMessage, ChatAttachment } from '../types'
 
 interface UseWebSocketOptions {
   url: string
@@ -11,7 +11,7 @@ interface UseWebSocketOptions {
 interface UseWebSocketReturn {
   connected: boolean
   hello: GatewayHelloOk | null
-  sendMessage: (sessionKey: string, content: string) => void
+  sendMessage: (sessionKey: string, content: string, attachments?: ChatAttachment[]) => void
   onMessageStream: React.MutableRefObject<((msg: ChatMessage) => void) | null>
   reconnect: () => void
   client: GatewayClient | null
@@ -170,7 +170,7 @@ export function useWebSocket({ url, token, enabled }: UseWebSocketOptions): UseW
     }
   }, [])
 
-  const sendMessage = useCallback((sessionKey: string, content: string) => {
+  const sendMessage = useCallback((sessionKey: string, content: string, attachments?: ChatAttachment[]) => {
     const client = clientRef.current
     if (!client) {
       console.error('[ws] cannot send: no client instance')
@@ -187,14 +187,27 @@ export function useWebSocket({ url, token, enabled }: UseWebSocketOptions): UseW
 
     const idempotencyKey = generateId()
 
-    // File paths are embedded in the content text.
-    // Backend's detectImageReferences will auto-detect and load them.
-    client.request('chat.send', {
+    // Build gateway attachments with file paths (backend reads files itself)
+    const gatewayAttachments = attachments
+      ?.filter((a) => a.filePath)
+      .map((a) => ({
+        type: a.type,
+        mimeType: a.mimeType,
+        fileName: a.fileName,
+        filePath: a.filePath,
+      }))
+
+    const payload: Record<string, unknown> = {
       sessionKey,
       message: content,
       deliver: false,
       idempotencyKey,
-    }).catch((err) => {
+    }
+    if (gatewayAttachments && gatewayAttachments.length > 0) {
+      payload.attachments = gatewayAttachments
+    }
+
+    client.request('chat.send', payload).catch((err) => {
       console.error('[ws] chat.send failed:', err)
       const msg: ChatMessage = {
         id: idempotencyKey,

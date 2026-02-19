@@ -46,11 +46,6 @@ export function VideoSplash({ gatewayState, exiting = false, onRetry }: VideoSpl
 
       {!isError && (
         <div className="video-splash-status">
-          <p className="video-splash-text">
-            {gatewayState === 'starting' && '正在启动 ClawWin...'}
-            {gatewayState === 'restarting' && '正在重启服务...'}
-            {gatewayState === 'stopped' && '正在准备...'}
-          </p>
           <div className="video-splash-progress">
             <div className="video-splash-progress-bar" />
           </div>

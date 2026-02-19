@@ -219,12 +219,18 @@ function setupIPC() {
     }
   })
 
-  // Open folder in file explorer (create if not exists)
+  // Open path in file explorer or with default app
   ipcMain.handle('shell:openPath', (_event, folderPath: string) => {
     try {
       // Expand ~ to home directory on all platforms
       const resolved = folderPath.replace(/^~/, os.homedir())
-      fs.mkdirSync(resolved, { recursive: true })
+      // Only mkdir for paths that don't exist and look like directories (no extension)
+      if (!fs.existsSync(resolved)) {
+        const hasExt = /\.[^/\\]+$/.test(resolved)
+        if (!hasExt) {
+          fs.mkdirSync(resolved, { recursive: true })
+        }
+      }
       shell.openPath(resolved)
     } catch (err) {
       console.error('shell:openPath failed:', err)
@@ -490,6 +496,30 @@ function setupIPC() {
       return JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf-8'))
     } catch {
       return []
+    }
+  })
+
+  // Copy file to workspace uploads directory (bypass gateway sandbox)
+  ipcMain.handle('file:copyToWorkspace', async (_event, srcPath: string) => {
+    try {
+      const configPath = getOpenclawConfigPath()
+      let workspace = path.join(os.homedir(), 'openclaw')
+      if (fs.existsSync(configPath)) {
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
+        workspace = config?.agents?.defaults?.workspace || workspace
+      }
+      const uploadsDir = path.join(workspace, 'uploads')
+      if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true })
+
+      const baseName = path.basename(srcPath)
+      const timestamp = Date.now()
+      const destName = `${timestamp}-${baseName}`
+      const destPath = path.join(uploadsDir, destName)
+
+      fs.copyFileSync(srcPath, destPath)
+      return { ok: true, destPath }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
     }
   })
 

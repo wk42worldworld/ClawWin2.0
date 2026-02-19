@@ -116,6 +116,8 @@ const electronAPI = {
   // File utilities (Electron 32+ removed File.path, use webUtils instead)
   file: {
     getPath: (file: File): string => webUtils.getPathForFile(file),
+    copyToWorkspace: (srcPath: string): Promise<{ ok: boolean; destPath?: string; error?: string }> =>
+      ipcRenderer.invoke('file:copyToWorkspace', srcPath),
   },
 
   // Skills

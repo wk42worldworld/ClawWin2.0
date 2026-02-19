@@ -10,14 +10,17 @@ function isImageFile(mimeType?: string, fileName?: string): boolean {
   return false
 }
 
-/** Convert a local file path to a file:// URL (handles Windows backslashes) */
+/** Convert a local file path to a file:// URL (handles Windows backslashes, CJK, spaces, special chars) */
 function filePathToUrl(filePath: string): string {
   const normalized = filePath.replace(/\\/g, '/')
-  // Ensure triple-slash for absolute paths: file:///C:/...
+  // Encode each path segment to handle spaces, CJK, #, % etc.
+  const encoded = normalized.split('/').map((seg) => encodeURIComponent(seg)).join('/')
+  // Ensure triple-slash for absolute paths: file:///C%3A/...  →  need colon unescaped for drive letter
   if (/^[a-zA-Z]:\//.test(normalized)) {
-    return `file:///${normalized}`
+    // Re-insert the colon for the drive letter (encodeURIComponent escapes it to %3A)
+    return `file:///${encoded.replace('%3A', ':')}`
   }
-  return `file://${normalized}`
+  return `file://${encoded}`
 }
 
 interface MessageBubbleProps {
@@ -40,7 +43,6 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onCopy, o
   const hasAttachments = attachments && attachments.length > 0
   const isSingleAttachment = hasAttachments && attachments.length === 1
 
-  // Filter out file paths from display text (they're shown as attachments)
   const displayContent = message.content
 
   return (
@@ -49,14 +51,19 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onCopy, o
         <div className={`message-content ${isStreaming ? 'message-streaming' : ''} ${isError ? 'message-error-content' : ''}${hasAttachments ? ' has-attachments' : ''}`}>
           {hasAttachments && (
             <div className={`message-attachments${isSingleAttachment ? ' single' : ''}`}>
-              {attachments.map((att, index) => {
+              {attachments.filter((a) => a.filePath).map((att, index) => {
                 const isImage = isImageFile(att.mimeType, att.fileName)
 
                 if (isImage) {
+                  const imgSrc = att.content && att.mimeType
+                    ? `data:${att.mimeType};base64,${att.content}`
+                    : att.content
+                      ? `data:image/png;base64,${att.content}`
+                      : filePathToUrl(att.filePath)
                   return (
                     <img
                       key={index}
-                      src={filePathToUrl(att.filePath)}
+                      src={imgSrc}
                       alt={att.fileName || 'image'}
                       className="message-attachment-img"
                       onClick={() => handleFileClick(att.filePath)}

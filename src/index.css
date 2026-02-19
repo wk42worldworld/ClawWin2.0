@@ -1739,6 +1739,24 @@ body {
 .tag-international { background: #b45309; color: #FFCC00; }
 .tag-custom { background: rgba(255, 255, 255, 0.05); color: var(--text-secondary); }
 
+.provider-key-link {
+  font-size: 8px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  border: 1px solid rgba(0, 162, 224, 0.3);
+  background: rgba(0, 162, 224, 0.1);
+  color: var(--accent);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.provider-key-link:hover {
+  background: rgba(0, 162, 224, 0.25);
+  border-color: var(--accent);
+}
+
 .model-list {
   padding: 8px;
 }
@@ -2755,6 +2773,12 @@ body {
   letter-spacing: -0.02em;
 }
 
+.model-settings-provider-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .model-settings-model-list {
   padding: 4px 8px 8px;
   display: flex;
@@ -3436,6 +3460,7 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transform: scale(1.15);
 }
 
 .video-splash-overlay {
@@ -3454,23 +3479,12 @@ body {
 .video-splash-status {
   position: absolute;
   bottom: 80px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
+  justify-content: center;
   z-index: 2;
   animation: subtleIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-.video-splash-text {
-  font-size: 16px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.9);
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
-  letter-spacing: 0.1em;
-  margin: 0;
 }
 
 .video-splash-progress {
