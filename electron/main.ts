@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, shell, globalShortcut, Tray, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, shell, globalShortcut, Tray, dialog, clipboard, nativeImage } from 'electron'
 import path from 'node:path'
 import os from 'node:os'
 import fs from 'node:fs'
@@ -263,6 +263,14 @@ function setupIPC() {
 
   ipcMain.handle('app:cancelDownload', () => {
     cancelDownload()
+  })
+
+  // 截屏：捕获当前窗口并写入剪贴板
+  ipcMain.handle('app:captureScreen', async () => {
+    if (!mainWindow) throw new Error('No window')
+    const image = await mainWindow.webContents.capturePage()
+    clipboard.writeImage(image)
+    return true
   })
 
   // Sign device auth for gateway connect handshake

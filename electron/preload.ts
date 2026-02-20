@@ -87,6 +87,7 @@ const electronAPI = {
       return () => ipcRenderer.removeListener('app:downloadProgress', handler)
     },
     installUpdate: (): Promise<void> => ipcRenderer.invoke('app:installUpdate'),
+    captureScreen: (): Promise<boolean> => ipcRenderer.invoke('app:captureScreen'),
   },
 
   // Config

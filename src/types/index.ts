@@ -114,6 +114,7 @@ interface ElectronApp {
   cancelDownload: () => Promise<void>
   onDownloadProgress: (callback: (progress: DownloadProgress) => void) => () => void
   installUpdate: () => Promise<void>
+  captureScreen: () => Promise<boolean>
 }
 
 interface ElectronAPI {
