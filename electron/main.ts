@@ -8,11 +8,14 @@ import { getNodePath, getOpenclawPath } from './node-runtime'
 import { signDeviceAuth, type DeviceAuthParams } from './device-identity'
 import { scanSkills, getSkillsConfig, saveSkillsConfig } from './skills-scanner'
 import { OllamaManager } from './ollama-manager'
+import { checkForUpdate, downloadUpdate, installUpdate, cancelDownload, type UpdateInfo } from './update-checker'
 
 let mainWindow: BrowserWindow | null = null
 let gatewayManager: GatewayManager | null = null
 let tray: Tray | null = null
 let isQuitting = false
+let pendingUpdateInfo: UpdateInfo | null = null
+let downloadedInstallerPath: string | null = null
 let ollamaManager: OllamaManager | null = null
 
 const DIST = path.join(__dirname, '../dist')
@@ -240,6 +243,26 @@ function setupIPC() {
   // Get app version
   ipcMain.handle('app:getVersion', () => {
     return app.getVersion()
+  })
+
+  // Update checker
+  ipcMain.handle('app:downloadUpdate', async () => {
+    if (!pendingUpdateInfo) throw new Error('No update available')
+    downloadedInstallerPath = await downloadUpdate(pendingUpdateInfo.downloadUrl, pendingUpdateInfo.fileName, (progress) => {
+      mainWindow?.webContents.send('app:downloadProgress', progress)
+    })
+  })
+
+  ipcMain.handle('app:installUpdate', async () => {
+    if (!downloadedInstallerPath) throw new Error('No downloaded installer')
+    // 先停掉子进程，避免安装程序与残留进程冲突
+    try { await gatewayManager?.stop() } catch { /* ignore */ }
+    try { await ollamaManager?.stop() } catch { /* ignore */ }
+    installUpdate(downloadedInstallerPath)
+  })
+
+  ipcMain.handle('app:cancelDownload', () => {
+    cancelDownload()
   })
 
   // Sign device auth for gateway connect handshake
@@ -614,6 +637,16 @@ app.whenReady().then(async () => {
   createWindow()
   ollamaManager?.setMainWindow(mainWindow)
   createTray()
+
+  // 启动后检查更新
+  mainWindow?.webContents.on('did-finish-load', () => {
+    checkForUpdate().then((info) => {
+      if (info) {
+        pendingUpdateInfo = info
+        mainWindow?.webContents.send('app:updateAvailable', info)
+      }
+    }).catch(() => { /* 静默失败 */ })
+  })
 })
 
 app.on('window-all-closed', () => {

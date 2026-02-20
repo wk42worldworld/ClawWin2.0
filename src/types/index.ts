@@ -94,11 +94,33 @@ interface ElectronOllama {
   onStatusChange: (callback: (status: OllamaStatus) => void) => () => void
 }
 
+export interface UpdateInfo {
+  version: string
+  releaseNotes: string
+  downloadUrl: string
+  fileName: string
+}
+
+export interface DownloadProgress {
+  percent: number
+  transferredBytes: number
+  totalBytes: number
+}
+
+interface ElectronApp {
+  getVersion: () => Promise<string>
+  onUpdateAvailable: (callback: (info: UpdateInfo) => void) => () => void
+  downloadUpdate: () => Promise<void>
+  cancelDownload: () => Promise<void>
+  onDownloadProgress: (callback: (progress: DownloadProgress) => void) => () => void
+  installUpdate: () => Promise<void>
+}
+
 interface ElectronAPI {
   gateway: ElectronGateway
   setup: ElectronSetup
   shell: { openExternal: (url: string) => Promise<void>; openPath: (folderPath: string) => Promise<void> }
-  app: { getVersion: () => Promise<string> }
+  app: ElectronApp
   config: ElectronConfig
   sessions: ElectronSessions
   dialog: ElectronDialog

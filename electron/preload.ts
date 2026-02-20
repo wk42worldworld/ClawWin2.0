@@ -74,6 +74,19 @@ const electronAPI = {
   // App
   app: {
     getVersion: (): Promise<string> => ipcRenderer.invoke('app:getVersion'),
+    onUpdateAvailable: (callback: (info: { version: string; releaseNotes: string; downloadUrl: string; fileName: string }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, info: { version: string; releaseNotes: string; downloadUrl: string; fileName: string }) => callback(info)
+      ipcRenderer.on('app:updateAvailable', handler)
+      return () => ipcRenderer.removeListener('app:updateAvailable', handler)
+    },
+    downloadUpdate: (): Promise<void> => ipcRenderer.invoke('app:downloadUpdate'),
+    cancelDownload: (): Promise<void> => ipcRenderer.invoke('app:cancelDownload'),
+    onDownloadProgress: (callback: (progress: { percent: number; transferredBytes: number; totalBytes: number }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, progress: { percent: number; transferredBytes: number; totalBytes: number }) => callback(progress)
+      ipcRenderer.on('app:downloadProgress', handler)
+      return () => ipcRenderer.removeListener('app:downloadProgress', handler)
+    },
+    installUpdate: (): Promise<void> => ipcRenderer.invoke('app:installUpdate'),
   },
 
   // Config

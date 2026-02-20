@@ -12,6 +12,7 @@ import { SetupComplete } from './components/Setup/SetupComplete'
 import { ErrorBoundary } from './components/Common/ErrorBoundary'
 import { Loading } from './components/Common/Loading'
 import { VideoSplash } from './components/Common/VideoSplash'
+import { UpdateNotification } from './components/Common/UpdateNotification'
 import { ModelSettings } from './components/Settings/ModelSettings'
 import { ChannelSettings } from './components/Settings/ChannelSettings'
 import { SkillSettings } from './components/Settings/SkillSettings'
@@ -19,7 +20,7 @@ import { CronManager } from './components/Settings/CronManager'
 import { useGateway } from './hooks/useGateway'
 import { useWebSocket } from './hooks/useWebSocket'
 import { useSetup, type SetupStep } from './hooks/useSetup'
-import type { ChatMessage, ChatSession, ChatAttachment, ModelProvider, ModelInfo, SkillInfo, SkillsConfig } from './types'
+import type { ChatMessage, ChatSession, ChatAttachment, ModelProvider, ModelInfo, SkillInfo, SkillsConfig, UpdateInfo } from './types'
 
 const SETUP_STEPS: SetupStep[] = ['welcome', 'model', 'apikey', 'workspace', 'gateway', 'channels', 'skills', 'complete']
 
@@ -51,6 +52,7 @@ function App() {
   const [splashDismissed, setSplashDismissed] = useState(false)
   const [showSplashExit, setShowSplashExit] = useState(false)
   const [splashActive, setSplashActive] = useState(false)
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null)
   const splashActivatedAt = useRef(0)
   const waitingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -117,6 +119,14 @@ function App() {
     window.electronAPI.config.getTimeout().then((ms) => {
       if (ms > 0) setResponseTimeout(ms)
     }).catch(() => {})
+  }, [])
+
+  // 监听更新通知
+  useEffect(() => {
+    const unsub = window.electronAPI.app.onUpdateAvailable((info) => {
+      setUpdateInfo(info)
+    })
+    return unsub
   }, [])
 
   // Save sessions to disk on change (debounced)
@@ -716,6 +726,13 @@ function App() {
           client={ws.client}
           connected={ws.connected}
           onClose={() => setShowCronManager(false)}
+        />
+      )}
+
+      {updateInfo && (
+        <UpdateNotification
+          info={updateInfo}
+          onClose={() => setUpdateInfo(null)}
         />
       )}
     </ErrorBoundary>
