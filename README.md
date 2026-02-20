@@ -8,13 +8,13 @@
 
 ## 截图 / Screenshots
 
-| 聊天界面 Chat | 欢迎引导 Welcome |
+| 聊天界面 Chat | 安装引导 Setup |
 |:---:|:---:|
-| ![聊天界面](docs/screenshots/chat.png) | ![欢迎引导](docs/screenshots/welcome.png) |
+| ![聊天界面](docs/screenshots/聊天界面.png) | ![安装引导](docs/screenshots/安装引导.png) |
 
-| 模型选择 Models | 本地模型 Ollama | 技能管理 Skills |
+| 模型选择 Models | 云端模型 Providers | 技能配置 Skills |
 |:---:|:---:|:---:|
-| ![模型选择](docs/screenshots/model-setup.png) | ![本地模型](docs/screenshots/ollama.png) | ![技能管理](docs/screenshots/skills.png) |
+| ![模型选择](docs/screenshots/模型选择.png) | ![云端模型](docs/screenshots/云端模型.png) | ![技能配置](docs/screenshots/技能配置.png) |
 
 ---
 
