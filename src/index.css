@@ -2487,12 +2487,34 @@ body {
 }
 
 .channel-name {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 20px;
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: -0.02em;
   color: var(--text-primary);
+}
+
+.channel-tutorial-link {
+  font-size: 9px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: none;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.channel-tutorial-link:hover {
+  background: rgba(34, 197, 94, 0.25);
+  border-color: #22c55e;
 }
 
 .channel-blurb {

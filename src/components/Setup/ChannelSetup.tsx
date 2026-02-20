@@ -79,7 +79,20 @@ export function ChannelSetup({ channels: initialChannels, onBack, onNext }: Chan
               <div className="channel-card-header">
                 <span className="channel-icon"><ch.logo /></span>
                 <div className="channel-info">
-                  <span className="channel-name">{ch.label}</span>
+                  <span className="channel-name">
+                    {ch.label}
+                    {ch.tutorialUrl && (
+                      <button
+                        className="channel-tutorial-link"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          window.electronAPI.shell.openExternal(ch.tutorialUrl!)
+                        }}
+                      >
+                        教程
+                      </button>
+                    )}
+                  </span>
                   <span className="channel-blurb">{ch.blurb}</span>
                 </div>
                 {isDisabled ? (
@@ -137,6 +150,14 @@ export function ChannelSetup({ channels: initialChannels, onBack, onNext }: Chan
             <div className="channel-dialog-header">
               <span className="channel-icon"><editingDef.logo /></span>
               <h3>{editingDef.label} 配置</h3>
+              {editingDef.tutorialUrl && (
+                <button
+                  className="channel-tutorial-link"
+                  onClick={() => window.electronAPI.shell.openExternal(editingDef.tutorialUrl!)}
+                >
+                  查看教程
+                </button>
+              )}
             </div>
             <div className="channel-dialog-body">
               {editingDef.fields.map((f) => (
