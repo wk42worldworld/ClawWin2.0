@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; user-select: none; }
+canvas { position: absolute; top: 0; left: 0; cursor: crosshair; }
+#toolbar {
+  display: none; position: absolute; z-index: 10;
+  background: rgba(30,30,30,0.9); border-radius: 8px; padding: 6px 8px;
+  gap: 6px; align-items: center; backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.15);
+}
+#toolbar button {
+  padding: 5px 16px; border: none; border-radius: 6px; font-size: 13px;
+  cursor: pointer; font-weight: 600; transition: all 0.15s;
+}
+#cancelBtn { background: rgba(255,255,255,0.12); color: #ccc; }
+#cancelBtn:hover { background: rgba(255,255,255,0.2); }
+#confirmBtn { background: #4F8EF7; color: #fff; }
+#confirmBtn:hover { background: #3a7be0; }
+#sizeLabel {
+  display: none; position: absolute; z-index: 10;
+  background: rgba(0,0,0,0.75); color: #fff; font-size: 12px;
+  padding: 2px 8px; border-radius: 4px; font-family: monospace;
+  pointer-events: none;
+}
+#tip {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  color: rgba(255,255,255,0.6); font-size: 16px; font-family: system-ui;
+  pointer-events: none;
+}
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<div id="sizeLabel"></div>
+<div id="toolbar">
+  <button id="cancelBtn">取消</button>
+  <button id="confirmBtn">确定</button>
+</div>
+<div id="tip">拖拽选择截屏区域 · ESC 取消 · 双击全屏截图</div>
+<script>
+(async () => {
+  const canvas = document.getElementById('canvas')
+  const ctx = canvas.getContext('2d')
+  const toolbar = document.getElementById('toolbar')
+  const sizeLabel = document.getElementById('sizeLabel')
+  const tip = document.getElementById('tip')
+  const dpr = window.devicePixelRatio || 1
+
+  canvas.width = window.innerWidth * dpr
+  canvas.height = window.innerHeight * dpr
+  canvas.style.width = window.innerWidth + 'px'
+  canvas.style.height = window.innerHeight + 'px'
+  ctx.scale(dpr, dpr)
+
+  // Load screen capture
+  const dataUrl = await window.screenshotAPI.getScreenImage()
+  const img = new Image()
+  await new Promise((resolve) => { img.onload = resolve; img.src = dataUrl })
+
+  let startX = 0, startY = 0, endX = 0, endY = 0
+  let isDragging = false, hasSelection = false
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.drawImage(img, 0, 0, window.innerWidth, window.innerHeight)
+
+    if (isDragging || hasSelection) {
+      const x = Math.min(startX, endX), y = Math.min(startY, endY)
+      const w = Math.abs(endX - startX), h = Math.abs(endY - startY)
+
+      // Dark overlay with hole
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
+      ctx.beginPath()
+      ctx.rect(0, 0, window.innerWidth, window.innerHeight)
+      ctx.rect(x, y, w, h)
+      ctx.fill('evenodd')
+
+      // Selection border
+      ctx.strokeStyle = '#4F8EF7'
+      ctx.lineWidth = 2
+      ctx.strokeRect(x, y, w, h)
+
+      // Size label
+      if (w > 5 && h > 5) {
+        const realW = Math.round(w * dpr), realH = Math.round(h * dpr)
+        sizeLabel.textContent = `${realW} × ${realH}`
+        sizeLabel.style.display = 'block'
+        sizeLabel.style.left = x + 'px'
+        sizeLabel.style.top = Math.max(0, y - 26) + 'px'
+      }
+    } else {
+      // No selection: full dark overlay
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
+      ctx.fillRect(0, 0, window.innerWidth, window.innerHeight)
+      sizeLabel.style.display = 'none'
+    }
+  }
+
+  draw()
+
+  canvas.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return
+    tip.style.display = 'none'
+    toolbar.style.display = 'none'
+    hasSelection = false
+    isDragging = true
+    startX = e.clientX; startY = e.clientY
+    endX = e.clientX; endY = e.clientY
+    draw()
+  })
+
+  canvas.addEventListener('mousemove', (e) => {
+    if (!isDragging) return
+    endX = e.clientX; endY = e.clientY
+    draw()
+  })
+
+  canvas.addEventListener('mouseup', (e) => {
+    if (!isDragging) return
+    isDragging = false
+    endX = e.clientX; endY = e.clientY
+
+    const w = Math.abs(endX - startX), h = Math.abs(endY - startY)
+    if (w < 5 || h < 5) {
+      hasSelection = false
+      draw()
+      return
+    }
+
+    hasSelection = true
+    draw()
+
+    // Position toolbar below selection
+    const selRight = Math.max(startX, endX)
+    const selBottom = Math.max(startY, endY)
+    toolbar.style.display = 'flex'
+    const tbWidth = toolbar.offsetWidth
+    let tbLeft = selRight - tbWidth
+    let tbTop = selBottom + 8
+    if (tbTop + 40 > window.innerHeight) tbTop = selBottom - 44
+    if (tbLeft < 0) tbLeft = 0
+    toolbar.style.left = tbLeft + 'px'
+    toolbar.style.top = tbTop + 'px'
+  })
+
+  // Double-click: full screen capture
+  canvas.addEventListener('dblclick', () => {
+    window.screenshotAPI.confirm({ x: 0, y: 0, width: window.innerWidth * dpr, height: window.innerHeight * dpr })
+  })
+
+  // Confirm button
+  document.getElementById('confirmBtn').addEventListener('click', () => {
+    if (!hasSelection) return
+    const x = Math.min(startX, endX) * dpr
+    const y = Math.min(startY, endY) * dpr
+    const w = Math.abs(endX - startX) * dpr
+    const h = Math.abs(endY - startY) * dpr
+    window.screenshotAPI.confirm({ x: Math.round(x), y: Math.round(y), width: Math.round(w), height: Math.round(h) })
+  })
+
+  // Cancel
+  document.getElementById('cancelBtn').addEventListener('click', () => {
+    window.screenshotAPI.cancel()
+  })
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') window.screenshotAPI.cancel()
+    if (e.key === 'Enter' && hasSelection) {
+      document.getElementById('confirmBtn').click()
+    }
+  })
+})()
+</script>
+</body>
+</html>

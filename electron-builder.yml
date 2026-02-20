@@ -8,6 +8,7 @@ directories:
 files:
   - dist/**/*
   - dist-electron/**/*
+  - electron/screenshot.html
 
 extraResources:
   - from: bundled/node/

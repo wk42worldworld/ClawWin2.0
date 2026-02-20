@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, shell, globalShortcut, Tray, dialog, clipboard, nativeImage } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, shell, globalShortcut, Tray, dialog, clipboard, nativeImage, desktopCapturer, screen } from 'electron'
 import path from 'node:path'
 import os from 'node:os'
 import fs from 'node:fs'
@@ -292,7 +292,148 @@ function setupIPC() {
     cancelDownload()
   })
 
-  // 截屏：捕获当前窗口并写入剪贴板
+  // ── 区域截屏 ──────────────────────────────────────────
+  let screenshotWin: BrowserWindow | null = null
+  let screenshotImageDataUrl = ''
+
+  // 启动截屏：隐藏主窗口 → 捕获屏幕 → 打开截屏覆盖窗口
+  ipcMain.handle('app:startScreenshot', async () => {
+    if (screenshotWin) return false
+    if (!mainWindow) return false
+
+    // 隐藏主窗口，避免遮挡截屏目标
+    mainWindow.hide()
+    await new Promise((r) => setTimeout(r, 200))
+
+    try {
+      const primaryDisplay = screen.getPrimaryDisplay()
+      const { width, height } = primaryDisplay.size
+      const scaleFactor = primaryDisplay.scaleFactor
+
+      const sources = await desktopCapturer.getSources({
+        types: ['screen'],
+        thumbnailSize: { width: Math.round(width * scaleFactor), height: Math.round(height * scaleFactor) },
+      })
+      if (sources.length === 0) {
+        mainWindow.show()
+        return false
+      }
+
+      screenshotImageDataUrl = sources[0].thumbnail.toDataURL()
+
+      screenshotWin = new BrowserWindow({
+        x: primaryDisplay.bounds.x,
+        y: primaryDisplay.bounds.y,
+        width,
+        height,
+        fullscreen: true,
+        frame: false,
+        transparent: false,
+        alwaysOnTop: true,
+        skipTaskbar: true,
+        resizable: false,
+        webPreferences: {
+          preload: path.join(__dirname, 'screenshot-preload.js'),
+          contextIsolation: true,
+          nodeIntegration: false,
+        },
+      })
+
+      screenshotWin.setMenuBarVisibility(false)
+      screenshotWin.loadFile(path.join(__dirname, '..', 'electron', 'screenshot.html'))
+
+      screenshotWin.on('closed', () => {
+        screenshotWin = null
+        screenshotImageDataUrl = ''
+      })
+
+      // 失焦自动取消
+      screenshotWin.on('blur', () => {
+        if (screenshotWin) {
+          screenshotWin.close()
+          screenshotWin = null
+          mainWindow?.show()
+        }
+      })
+
+      return true
+    } catch {
+      mainWindow.show()
+      return false
+    }
+  })
+
+  // 截屏窗口请求底图
+  ipcMain.handle('screenshot:getImage', () => {
+    return screenshotImageDataUrl
+  })
+
+  // 截屏确认：裁剪选区 → 写入剪贴板 → 保存临时文件 → 通知渲染进程
+  ipcMain.handle('screenshot:confirm', async (_event, rect: { x: number; y: number; width: number; height: number }) => {
+    try {
+      if (!screenshotImageDataUrl) return
+
+      const fullImage = nativeImage.createFromDataURL(screenshotImageDataUrl)
+      const cropped = fullImage.crop({
+        x: Math.round(rect.x),
+        y: Math.round(rect.y),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+      })
+
+      // 写入剪贴板
+      clipboard.writeImage(cropped)
+
+      // 保存临时文件
+      const configPath = getOpenclawConfigPath()
+      let workspace = path.join(os.homedir(), 'openclaw')
+      if (fs.existsSync(configPath)) {
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
+        workspace = config?.agents?.defaults?.workspace || workspace
+      }
+      const uploadsDir = path.join(workspace, 'uploads')
+      if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true })
+
+      const fileName = `screenshot-${Date.now()}.png`
+      const filePath = path.join(uploadsDir, fileName)
+      fs.writeFileSync(filePath, cropped.toPNG())
+
+      // 关闭截屏窗口，恢复主窗口
+      if (screenshotWin) {
+        screenshotWin.removeAllListeners('blur')
+        screenshotWin.close()
+        screenshotWin = null
+      }
+      screenshotImageDataUrl = ''
+      mainWindow?.show()
+      mainWindow?.focus()
+
+      // 通知渲染进程：截屏完成，附带文件路径和 base64
+      const base64 = cropped.toPNG().toString('base64')
+      mainWindow?.webContents.send('screenshot:captured', { filePath, base64, fileName })
+    } catch {
+      if (screenshotWin) {
+        screenshotWin.removeAllListeners('blur')
+        screenshotWin.close()
+        screenshotWin = null
+      }
+      mainWindow?.show()
+    }
+  })
+
+  // 截屏取消
+  ipcMain.handle('screenshot:cancel', () => {
+    if (screenshotWin) {
+      screenshotWin.removeAllListeners('blur')
+      screenshotWin.close()
+      screenshotWin = null
+    }
+    screenshotImageDataUrl = ''
+    mainWindow?.show()
+    mainWindow?.focus()
+  })
+
+  // 兼容旧的 captureScreen（截取整个窗口）
   ipcMain.handle('app:captureScreen', async () => {
     if (!mainWindow) throw new Error('No window')
     const image = await mainWindow.webContents.capturePage()
@@ -576,6 +717,29 @@ function setupIPC() {
 
       fs.copyFileSync(srcPath, destPath)
       return { ok: true, destPath }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
+  // 将 base64 图片保存为临时文件（用于剪贴板粘贴的图片）
+  ipcMain.handle('file:saveImageFromClipboard', async (_event, base64: string, mimeType: string) => {
+    try {
+      const configPath = getOpenclawConfigPath()
+      let workspace = path.join(os.homedir(), 'openclaw')
+      if (fs.existsSync(configPath)) {
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
+        workspace = config?.agents?.defaults?.workspace || workspace
+      }
+      const tempDir = path.join(workspace, 'uploads')
+      if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true })
+
+      const ext = mimeType === 'image/png' ? '.png' : mimeType === 'image/gif' ? '.gif' : '.jpg'
+      const fileName = `clipboard-${Date.now()}${ext}`
+      const filePath = path.join(tempDir, fileName)
+
+      fs.writeFileSync(filePath, Buffer.from(base64, 'base64'))
+      return { ok: true, filePath }
     } catch (err) {
       return { ok: false, error: err instanceof Error ? err.message : String(err) }
     }

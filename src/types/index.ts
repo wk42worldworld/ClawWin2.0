@@ -71,6 +71,7 @@ interface ElectronDialog {
 interface ElectronFile {
   getPath: (file: File) => string
   copyToWorkspace: (srcPath: string) => Promise<{ ok: boolean; destPath?: string; error?: string }>
+  saveImageFromClipboard: (base64: string, mimeType: string) => Promise<{ ok: boolean; filePath?: string; error?: string }>
 }
 
 interface ElectronSkills {
@@ -115,6 +116,8 @@ interface ElectronApp {
   onDownloadProgress: (callback: (progress: DownloadProgress) => void) => () => void
   installUpdate: () => Promise<void>
   captureScreen: () => Promise<boolean>
+  startScreenshot: () => Promise<boolean>
+  onScreenshotCaptured: (callback: (data: { filePath: string; base64: string; fileName: string }) => void) => () => void
 }
 
 interface ElectronAPI {

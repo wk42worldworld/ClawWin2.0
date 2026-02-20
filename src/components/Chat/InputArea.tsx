@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useCallback, useEffect } from 'react'
 import type { ChatAttachment } from '../../types'
 
 const MAX_ATTACHMENTS = 5
@@ -33,12 +33,16 @@ interface InputAreaProps {
   onSend: (content: string, attachments?: ChatAttachment[]) => void
   disabled?: boolean
   placeholder?: string
+  externalAttachment?: AttachmentWithPreview | null
+  onExternalAttachmentConsumed?: () => void
 }
 
 export const InputArea: React.FC<InputAreaProps> = ({
   onSend,
   disabled = false,
   placeholder = '输入消息...',
+  externalAttachment,
+  onExternalAttachmentConsumed,
 }) => {
   const [input, setInput] = useState('')
   const [attachments, setAttachments] = useState<AttachmentWithPreview[]>([])
@@ -48,6 +52,17 @@ export const InputArea: React.FC<InputAreaProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dragCounterRef = useRef(0)
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // 接收外部注入的附件（如截屏）
+  useEffect(() => {
+    if (externalAttachment) {
+      setAttachments((prev) => {
+        if (prev.length >= MAX_ATTACHMENTS) return prev
+        return [...prev, externalAttachment]
+      })
+      onExternalAttachmentConsumed?.()
+    }
+  }, [externalAttachment, onExternalAttachmentConsumed])
 
   const showError = useCallback((msg: string) => {
     setError(msg)
@@ -208,7 +223,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
     textarea.style.height = Math.max(64, Math.min(textarea.scrollHeight + 8, 200)) + 'px'
   }, [])
 
-  // Paste: clipboard paste often lacks file.path in Electron
+  // Paste: support clipboard images by saving to temp file first
   const handlePaste = useCallback(
     (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
       const clipboardData = e.clipboardData
@@ -232,6 +247,8 @@ export const InputArea: React.FC<InputAreaProps> = ({
       }
 
       if (files.length > 0) {
+        e.preventDefault()
+
         // Check if files have backing paths (clipboard paste blobs don't)
         const hasPath = files.some((f) => {
           try {
@@ -240,16 +257,53 @@ export const InputArea: React.FC<InputAreaProps> = ({
             return false
           }
         })
-        if (!hasPath) {
-          showError('粘贴图片暂不支持，请使用拖放或文件选择方式添加')
-          e.preventDefault()
-          return
+
+        if (hasPath) {
+          processFiles(files)
+        } else {
+          // Clipboard images: read as base64, save to temp file, then process
+          const currentCount = attachments.length
+          const remainingSlots = MAX_ATTACHMENTS - currentCount
+          if (remainingSlots <= 0) {
+            showError(`最多只能添加 ${MAX_ATTACHMENTS} 个文件`)
+            return
+          }
+
+          const filesToProcess = files.filter((f) => f.type.startsWith('image/')).slice(0, remainingSlots)
+          if (filesToProcess.length === 0) {
+            showError('仅支持粘贴图片文件')
+            return
+          }
+
+          Promise.all(
+            filesToProcess.map(async (file) => {
+              const base64 = await readFileAsBase64(file)
+              const result = await window.electronAPI.file.saveImageFromClipboard(base64, file.type || 'image/png')
+              if (!result.ok || !result.filePath) {
+                showError('粘贴图片失败')
+                return null
+              }
+              const previewUrl = URL.createObjectURL(file)
+              return {
+                type: 'image' as const,
+                fileName: result.filePath.split(/[\\/]/).pop() || 'clipboard.png',
+                filePath: result.filePath,
+                mimeType: file.type || 'image/png',
+                content: base64,
+                previewUrl,
+                size: file.size,
+              }
+            })
+          ).then((results) => {
+            const newAttachments = results.filter((a) => a !== null) as AttachmentWithPreview[]
+            if (newAttachments.length > 0) {
+              setAttachments((prev) => [...prev, ...newAttachments])
+            }
+          })
         }
-        e.preventDefault()
-        processFiles(files)
       }
     },
-    [processFiles, showError]
+    [processFiles, showError, attachments.length]
   )
 
   const handleFileChange = useCallback(

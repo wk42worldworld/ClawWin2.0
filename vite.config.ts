@@ -36,6 +36,17 @@ export default defineConfig({
           },
         },
       },
+      {
+        entry: 'electron/screenshot-preload.ts',
+        vite: {
+          build: {
+            outDir: 'dist-electron',
+            rollupOptions: {
+              external: ['electron'],
+            },
+          },
+        },
+      },
     ]),
     renderer(),
   ],

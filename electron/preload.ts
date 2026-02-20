@@ -88,6 +88,12 @@ const electronAPI = {
     },
     installUpdate: (): Promise<void> => ipcRenderer.invoke('app:installUpdate'),
     captureScreen: (): Promise<boolean> => ipcRenderer.invoke('app:captureScreen'),
+    startScreenshot: (): Promise<boolean> => ipcRenderer.invoke('app:startScreenshot'),
+    onScreenshotCaptured: (callback: (data: { filePath: string; base64: string; fileName: string }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: { filePath: string; base64: string; fileName: string }) => callback(data)
+      ipcRenderer.on('screenshot:captured', handler)
+      return () => ipcRenderer.removeListener('screenshot:captured', handler)
+    },
   },
 
   // Config
@@ -132,6 +138,8 @@ const electronAPI = {
     getPath: (file: File): string => webUtils.getPathForFile(file),
     copyToWorkspace: (srcPath: string): Promise<{ ok: boolean; destPath?: string; error?: string }> =>
       ipcRenderer.invoke('file:copyToWorkspace', srcPath),
+    saveImageFromClipboard: (base64: string, mimeType: string): Promise<{ ok: boolean; filePath?: string; error?: string }> =>
+      ipcRenderer.invoke('file:saveImageFromClipboard', base64, mimeType),
   },
 
   // Skills

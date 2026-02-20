@@ -71,16 +71,44 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     navigator.clipboard.writeText(content).catch(console.error)
   }, [])
 
-  // 截屏：捕获窗口并写入剪贴板
+  // ── 区域截屏 ──────────────────────────────────────────
+  const [screenshotAttachment, setScreenshotAttachment] = useState<{
+    type: 'image'; fileName: string; filePath: string; mimeType: string; content: string; previewUrl?: string; size: number
+  } | null>(null)
+
   const handleScreenshot = useCallback(async () => {
     clearTimeout(toastTimerRef.current)
     try {
-      await window.electronAPI.app.captureScreen()
-      setScreenshotToast('已复制到剪贴板')
+      const ok = await window.electronAPI.app.startScreenshot()
+      if (!ok) {
+        setScreenshotToast('截屏启动失败')
+        toastTimerRef.current = setTimeout(() => setScreenshotToast(null), 2000)
+      }
     } catch {
       setScreenshotToast('截屏失败，请重试')
+      toastTimerRef.current = setTimeout(() => setScreenshotToast(null), 2000)
     }
-    toastTimerRef.current = setTimeout(() => setScreenshotToast(null), 2000)
+  }, [])
+
+  // 监听截屏完成事件
+  useEffect(() => {
+    const cleanup = window.electronAPI.app.onScreenshotCaptured((data) => {
+      // 构造附件注入 InputArea
+      const blob = new Blob([Uint8Array.from(atob(data.base64), (c) => c.charCodeAt(0))], { type: 'image/png' })
+      const previewUrl = URL.createObjectURL(blob)
+      setScreenshotAttachment({
+        type: 'image',
+        fileName: data.fileName,
+        filePath: data.filePath,
+        mimeType: 'image/png',
+        content: data.base64,
+        previewUrl,
+        size: blob.size,
+      })
+      setScreenshotToast('截屏已插入输入框')
+      toastTimerRef.current = setTimeout(() => setScreenshotToast(null), 2000)
+    })
+    return cleanup
   }, [])
 
   // 监听 Ctrl+Alt+A 快捷键
@@ -200,6 +228,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         onSend={onSend}
         disabled={disabled || !isReady || isWaiting}
         placeholder={!isReady ? '等待网关服务就绪...' : isWaiting ? 'AI 正在回复中...' : '输入消息...'}
+        externalAttachment={screenshotAttachment}
+        onExternalAttachmentConsumed={() => setScreenshotAttachment(null)}
       />
     </div>
   )
