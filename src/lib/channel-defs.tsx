@@ -96,7 +96,7 @@ export const CHANNELS: ChannelDef[] = [
     label: 'Telegram',
     blurb: '使用 @BotFather 注册一个机器人并开始使用',
     logo: TelegramLogo,
-    tutorialUrl: 'https://core.telegram.org/bots/tutorial',
+    tutorialUrl: 'https://docs.openclaw.ai/channels/telegram',
     fields: [
       { key: 'botToken', label: 'Bot Token', placeholder: '123456:ABC-DEF...', required: true },
     ],
@@ -106,7 +106,7 @@ export const CHANNELS: ChannelDef[] = [
     label: 'WhatsApp',
     blurb: '使用您自己的号码工作，运行时通过 QR 码配对',
     logo: WhatsAppLogo,
-    tutorialUrl: 'https://developers.facebook.com/docs/whatsapp/cloud-api/get-started',
+    tutorialUrl: 'https://docs.openclaw.ai/channels/whatsapp',
     fields: [],
   },
   {
@@ -114,7 +114,7 @@ export const CHANNELS: ChannelDef[] = [
     label: 'Discord',
     blurb: '通过 Discord Bot API 集成',
     logo: DiscordLogo,
-    tutorialUrl: 'https://discord.com/developers/docs/getting-started',
+    tutorialUrl: 'https://docs.openclaw.ai/channels/discord',
     fields: [
       { key: 'token', label: 'Bot Token', placeholder: 'MTk...', required: true },
     ],
@@ -124,7 +124,7 @@ export const CHANNELS: ChannelDef[] = [
     label: '飞书 / Lark',
     blurb: '飞书/Lark 开放平台 WebSocket 机器人集成',
     logo: FeishuLogo,
-    tutorialUrl: 'https://open.feishu.cn/document/home/introduction-to-custom-app-development/self-built-application-development-process',
+    tutorialUrl: 'https://docs.openclaw.ai/channels/feishu',
     fields: [
       { key: 'appId', label: 'App ID', placeholder: 'cli_xxx', required: true },
       { key: 'appSecret', label: 'App Secret', placeholder: '请输入 App Secret', required: true },
@@ -135,7 +135,7 @@ export const CHANNELS: ChannelDef[] = [
     label: 'Slack',
     blurb: '通过 Socket Mode 连接 Slack 工作区',
     logo: SlackLogo,
-    tutorialUrl: 'https://api.slack.com/start/quickstart',
+    tutorialUrl: 'https://docs.openclaw.ai/channels/slack',
     fields: [
       { key: 'botToken', label: 'Bot Token', placeholder: 'xoxb-...', required: true },
       { key: 'appToken', label: 'App Token', placeholder: 'xapp-...', required: true },
@@ -146,7 +146,7 @@ export const CHANNELS: ChannelDef[] = [
     label: 'Google Chat',
     blurb: '带有 HTTP webhook 的 Google Workspace 聊天应用',
     logo: GoogleChatLogo,
-    tutorialUrl: 'https://developers.google.com/workspace/chat/overview',
+    tutorialUrl: 'https://docs.openclaw.ai/channels/googlechat',
     fields: [],
   },
   {
@@ -154,7 +154,7 @@ export const CHANNELS: ChannelDef[] = [
     label: 'Signal',
     blurb: '通过 signal-cli 链接设备',
     logo: SignalLogo,
-    tutorialUrl: 'https://github.com/AsamK/signal-cli/wiki/Quickstart',
+    tutorialUrl: 'https://docs.openclaw.ai/channels/signal',
     fields: [
       { key: 'account', label: '账号', placeholder: '+86...', required: false },
     ],
@@ -164,7 +164,7 @@ export const CHANNELS: ChannelDef[] = [
     label: '钉钉',
     blurb: '钉钉开放平台 Stream 模式机器人',
     logo: DingTalkLogo,
-    tutorialUrl: 'https://open.dingtalk.com/document/orgapp/quick-start-to-develop-org-chatbot',
+    tutorialUrl: 'https://docs.openclaw.ai/channels/dingtalk',
     fields: [
       { key: 'clientId', label: 'Client ID (AppKey)', placeholder: 'dingxxxxxxx', required: true },
       { key: 'clientSecret', label: 'Client Secret (AppSecret)', placeholder: '请输入 AppSecret', required: true },
@@ -175,7 +175,7 @@ export const CHANNELS: ChannelDef[] = [
     label: '微信（企业微信）',
     blurb: '通过企业微信应用 API 接收和发送消息',
     logo: WeChatLogo,
-    tutorialUrl: 'https://developer.work.weixin.qq.com/document/path/90556',
+    tutorialUrl: 'https://docs.openclaw.ai/channels/wechat',
     fields: [
       { key: 'corpId', label: '企业 ID (CorpID)', placeholder: 'ww...', required: true },
       { key: 'agentId', label: '应用 AgentId', placeholder: '1000002', required: true },
@@ -189,7 +189,7 @@ export const CHANNELS: ChannelDef[] = [
     label: 'QQ',
     blurb: 'QQ 开放平台官方机器人 API',
     logo: QQLogo,
-    tutorialUrl: 'https://q.qq.com/wiki/develop/nocode/quick_start/',
+    tutorialUrl: 'https://docs.openclaw.ai/channels/qq',
     fields: [
       { key: 'appId', label: 'App ID', placeholder: '请输入 Bot AppID', required: true },
       { key: 'secret', label: 'App Secret', placeholder: '请输入 App Secret', required: true },

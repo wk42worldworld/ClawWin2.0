@@ -72,10 +72,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   }, [])
 
   // ── 区域截屏 ──────────────────────────────────────────
-  const [screenshotAttachment, setScreenshotAttachment] = useState<{
-    type: 'image'; fileName: string; filePath: string; mimeType: string; content: string; previewUrl?: string; size: number
-  } | null>(null)
-
   const handleScreenshot = useCallback(async () => {
     clearTimeout(toastTimerRef.current)
     try {
@@ -90,23 +86,11 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     }
   }, [])
 
-  // 监听截屏完成事件
+  // 监听截屏完成事件（仅 toast 提示）
   useEffect(() => {
-    const cleanup = window.electronAPI.app.onScreenshotCaptured((data) => {
-      // 构造附件注入 InputArea
-      const blob = new Blob([Uint8Array.from(atob(data.base64), (c) => c.charCodeAt(0))], { type: 'image/png' })
-      const previewUrl = URL.createObjectURL(blob)
-      setScreenshotAttachment({
-        type: 'image',
-        fileName: data.fileName,
-        filePath: data.filePath,
-        mimeType: 'image/png',
-        content: data.base64,
-        previewUrl,
-        size: blob.size,
-      })
-      setScreenshotToast('截屏已插入输入框')
-      toastTimerRef.current = setTimeout(() => setScreenshotToast(null), 2000)
+    const cleanup = window.electronAPI.app.onScreenshotCaptured(() => {
+      setScreenshotToast('已复制到剪贴板，Ctrl+V 粘贴到输入框')
+      toastTimerRef.current = setTimeout(() => setScreenshotToast(null), 2500)
     })
     return cleanup
   }, [])
@@ -228,8 +212,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         onSend={onSend}
         disabled={disabled || !isReady || isWaiting}
         placeholder={!isReady ? '等待网关服务就绪...' : isWaiting ? 'AI 正在回复中...' : '输入消息...'}
-        externalAttachment={screenshotAttachment}
-        onExternalAttachmentConsumed={() => setScreenshotAttachment(null)}
       />
     </div>
   )

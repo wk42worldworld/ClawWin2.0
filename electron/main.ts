@@ -296,14 +296,10 @@ function setupIPC() {
   let screenshotWin: BrowserWindow | null = null
   let screenshotImageDataUrl = ''
 
-  // 启动截屏：隐藏主窗口 → 捕获屏幕 → 打开截屏覆盖窗口
+  // 启动截屏：捕获屏幕 → 打开截屏覆盖窗口
   ipcMain.handle('app:startScreenshot', async () => {
     if (screenshotWin) return false
     if (!mainWindow) return false
-
-    // 隐藏主窗口，避免遮挡截屏目标
-    mainWindow.hide()
-    await new Promise((r) => setTimeout(r, 200))
 
     try {
       const primaryDisplay = screen.getPrimaryDisplay()
@@ -314,10 +310,7 @@ function setupIPC() {
         types: ['screen'],
         thumbnailSize: { width: Math.round(width * scaleFactor), height: Math.round(height * scaleFactor) },
       })
-      if (sources.length === 0) {
-        mainWindow.show()
-        return false
-      }
+      if (sources.length === 0) return false
 
       screenshotImageDataUrl = sources[0].thumbnail.toDataURL()
 
@@ -352,13 +345,11 @@ function setupIPC() {
         if (screenshotWin) {
           screenshotWin.close()
           screenshotWin = null
-          mainWindow?.show()
         }
       })
 
       return true
     } catch {
-      mainWindow.show()
       return false
     }
   })
@@ -368,7 +359,7 @@ function setupIPC() {
     return screenshotImageDataUrl
   })
 
-  // 截屏确认：裁剪选区 → 写入剪贴板 → 保存临时文件 → 通知渲染进程
+  // 截屏确认：裁剪选区 → 写入剪贴板
   ipcMain.handle('screenshot:confirm', async (_event, rect: { x: number; y: number; width: number; height: number }) => {
     try {
       if (!screenshotImageDataUrl) return
@@ -384,40 +375,23 @@ function setupIPC() {
       // 写入剪贴板
       clipboard.writeImage(cropped)
 
-      // 保存临时文件
-      const configPath = getOpenclawConfigPath()
-      let workspace = path.join(os.homedir(), 'openclaw')
-      if (fs.existsSync(configPath)) {
-        const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
-        workspace = config?.agents?.defaults?.workspace || workspace
-      }
-      const uploadsDir = path.join(workspace, 'uploads')
-      if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true })
-
-      const fileName = `screenshot-${Date.now()}.png`
-      const filePath = path.join(uploadsDir, fileName)
-      fs.writeFileSync(filePath, cropped.toPNG())
-
-      // 关闭截屏窗口，恢复主窗口
+      // 关闭截屏窗口
       if (screenshotWin) {
         screenshotWin.removeAllListeners('blur')
         screenshotWin.close()
         screenshotWin = null
       }
       screenshotImageDataUrl = ''
-      mainWindow?.show()
       mainWindow?.focus()
 
-      // 通知渲染进程：截屏完成，附带文件路径和 base64
-      const base64 = cropped.toPNG().toString('base64')
-      mainWindow?.webContents.send('screenshot:captured', { filePath, base64, fileName })
+      // 通知渲染进程：截屏完成（仅用于 toast 提示）
+      mainWindow?.webContents.send('screenshot:captured', {})
     } catch {
       if (screenshotWin) {
         screenshotWin.removeAllListeners('blur')
         screenshotWin.close()
         screenshotWin = null
       }
-      mainWindow?.show()
     }
   })
 
@@ -429,7 +403,7 @@ function setupIPC() {
       screenshotWin = null
     }
     screenshotImageDataUrl = ''
-    mainWindow?.show()
+    mainWindow?.focus()
     mainWindow?.focus()
   })
 
