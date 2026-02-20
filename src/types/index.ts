@@ -110,6 +110,7 @@ export interface DownloadProgress {
 
 interface ElectronApp {
   getVersion: () => Promise<string>
+  checkForUpdate: () => Promise<UpdateInfo | null>
   onUpdateAvailable: (callback: (info: UpdateInfo) => void) => () => void
   downloadUpdate: () => Promise<void>
   cancelDownload: () => Promise<void>

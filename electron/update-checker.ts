@@ -66,12 +66,15 @@ function fetchUrl(url: string, timeout = 10000, redirects = MAX_REDIRECTS): Prom
 /** 检查更新：按镜像列表顺序尝试，返回 UpdateInfo 或 null */
 export async function checkForUpdate(): Promise<UpdateInfo | null> {
   const currentVersion = app.getVersion()
+  console.log('[update-checker] current version:', currentVersion)
 
   for (const apiUrl of API_URLS) {
     try {
-      const body = await fetchUrl(apiUrl)
+      console.log('[update-checker] trying:', apiUrl)
+      const body = await fetchUrl(apiUrl, 5000)
       const release = JSON.parse(body)
       const tag: string = release.tag_name ?? ''
+      console.log('[update-checker] latest release:', tag)
       if (!tag || !isNewer(tag, currentVersion)) return null
 
       // 找 .exe 安装包资源
@@ -91,7 +94,8 @@ export async function checkForUpdate(): Promise<UpdateInfo | null> {
         downloadUrl: asset.browser_download_url,
         fileName: safeName,
       }
-    } catch {
+    } catch (err) {
+      console.log('[update-checker] failed for', apiUrl, err)
       continue
     }
   }

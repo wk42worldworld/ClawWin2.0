@@ -74,6 +74,7 @@ const electronAPI = {
   // App
   app: {
     getVersion: (): Promise<string> => ipcRenderer.invoke('app:getVersion'),
+    checkForUpdate: (): Promise<{ version: string; releaseNotes: string; downloadUrl: string; fileName: string } | null> => ipcRenderer.invoke('app:checkForUpdate'),
     onUpdateAvailable: (callback: (info: { version: string; releaseNotes: string; downloadUrl: string; fileName: string }) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, info: { version: string; releaseNotes: string; downloadUrl: string; fileName: string }) => callback(info)
       ipcRenderer.on('app:updateAvailable', handler)

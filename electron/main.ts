@@ -273,6 +273,11 @@ function setupIPC() {
   })
 
   // Update checker
+  ipcMain.handle('app:checkForUpdate', async () => {
+    const info = await checkForUpdate()
+    if (info) pendingUpdateInfo = info
+    return info
+  })
   ipcMain.handle('app:downloadUpdate', async () => {
     if (!pendingUpdateInfo) throw new Error('No update available')
     downloadedInstallerPath = await downloadUpdate(pendingUpdateInfo.downloadUrl, pendingUpdateInfo.fileName, (progress) => {
@@ -817,8 +822,11 @@ app.whenReady().then(async () => {
       if (info) {
         pendingUpdateInfo = info
         mainWindow?.webContents.send('app:updateAvailable', info)
+        console.log('[update] update available:', info.version)
+      } else {
+        console.log('[update] no update available')
       }
-    }).catch(() => { /* 静默失败 */ })
+    }).catch((err) => { console.log('[update] check failed:', err) })
   })
 })
 

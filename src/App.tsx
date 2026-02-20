@@ -53,6 +53,9 @@ function App() {
   const [showSplashExit, setShowSplashExit] = useState(false)
   const [splashActive, setSplashActive] = useState(false)
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null)
+  const [appVersion, setAppVersion] = useState('')
+  const [updateChecking, setUpdateChecking] = useState(false)
+  const [updateCheckResult, setUpdateCheckResult] = useState<string | null>(null)
   const splashActivatedAt = useRef(0)
   const waitingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -119,6 +122,8 @@ function App() {
     window.electronAPI.config.getTimeout().then((ms) => {
       if (ms > 0) setResponseTimeout(ms)
     }).catch(() => {})
+    // Load app version
+    window.electronAPI.app.getVersion().then(setAppVersion).catch(() => {})
   }, [])
 
   // 监听更新通知
@@ -590,6 +595,7 @@ function App() {
         <div className="app-footer">
           <div className="footer-version">
             <div className="footer-status-dot" style={{ backgroundColor: gateway.state === 'ready' ? '#22c55e' : gateway.state === 'error' ? '#ef4444' : '#f59e0b', boxShadow: gateway.state === 'ready' ? '0 0 12px rgba(16, 185, 129, 0.6)' : 'none' }} />
+            {appVersion && <span className="footer-version-text">v{appVersion}</span>}
           </div>
         </div>
       </div>
@@ -679,6 +685,36 @@ function App() {
                 ) : (
                   <p className="settings-value settings-muted">未配置</p>
                 )}
+              </div>
+              <div className="settings-section">
+                <h3>版本</h3>
+                <div className="settings-update-row">
+                  <p className="settings-value">v{appVersion || '...'}</p>
+                  <button
+                    className="btn-secondary"
+                    disabled={updateChecking}
+                    onClick={async () => {
+                      setUpdateChecking(true)
+                      setUpdateCheckResult(null)
+                      try {
+                        const info = await window.electronAPI.app.checkForUpdate()
+                        if (info) {
+                          setUpdateInfo(info)
+                          setShowSettings(false)
+                        } else {
+                          setUpdateCheckResult('已是最新版本')
+                        }
+                      } catch {
+                        setUpdateCheckResult('检查失败，请稍后重试')
+                      } finally {
+                        setUpdateChecking(false)
+                      }
+                    }}
+                  >
+                    {updateChecking ? '检查中...' : '检查更新'}
+                  </button>
+                </div>
+                {updateCheckResult && <p className="settings-hint">{updateCheckResult}</p>}
               </div>
               <button
                 className="btn-secondary settings-reconfig-btn"

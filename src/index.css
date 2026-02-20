@@ -882,6 +882,16 @@ body {
   gap: 48px;
 }
 
+.chat-messages::-webkit-scrollbar { width: 8px; }
+.chat-messages::-webkit-scrollbar-track { background: transparent; }
+.chat-messages::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 10px;
+}
+.chat-messages::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
 /* 滚动导航按钮 */
 .chat-scroll-buttons {
   position: absolute;
@@ -2788,6 +2798,12 @@ body {
    Settings Workspace Row
    ============================================ */
 .settings-workspace-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-update-row {
   display: flex;
   align-items: center;
   gap: 10px;
