@@ -1,6 +1,6 @@
 {
   "name": "openclaw-cn-desktop",
-  "version": "2.9.2",
+  "version": "2.9.3",
   "description": "ClawWin — AI 助手桌面客户端",
   "main": "dist-electron/main.js",
   "author": "ClawWin",

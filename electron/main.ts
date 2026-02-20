@@ -124,6 +124,33 @@ function createWindow() {
     return { action: 'deny' }
   })
 
+  // 右键上下文菜单（复制、粘贴、剪切、全选）
+  mainWindow.webContents.on('context-menu', (_event, params) => {
+    const menuItems: Electron.MenuItemConstructorOptions[] = []
+
+    if (params.isEditable) {
+      // 输入框：剪切、复制、粘贴、全选
+      menuItems.push(
+        { label: '剪切', role: 'cut', enabled: params.editFlags.canCut },
+        { label: '复制', role: 'copy', enabled: params.editFlags.canCopy },
+        { label: '粘贴', role: 'paste', enabled: params.editFlags.canPaste },
+        { type: 'separator' },
+        { label: '全选', role: 'selectAll', enabled: params.editFlags.canSelectAll },
+      )
+    } else if (params.selectionText) {
+      // 有选中文字：复制、全选
+      menuItems.push(
+        { label: '复制', role: 'copy' },
+        { type: 'separator' },
+        { label: '全选', role: 'selectAll' },
+      )
+    }
+
+    if (menuItems.length > 0) {
+      Menu.buildFromTemplate(menuItems).popup()
+    }
+  })
+
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
   } else {

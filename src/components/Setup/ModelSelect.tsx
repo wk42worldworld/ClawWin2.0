@@ -56,6 +56,20 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({
     xai: 'https://console.x.ai/',
   }
 
+  const PROVIDER_TUTORIAL_URLS: Record<string, string> = {
+    zhipu: 'https://open.bigmodel.cn/dev/howuse/introduction',
+    deepseek: 'https://api-docs.deepseek.com/zh-cn/',
+    qwen: 'https://help.aliyun.com/zh/model-studio/getting-started/',
+    moonshot: 'https://platform.moonshot.cn/docs/intro',
+    minimax: 'https://platform.minimaxi.com/document/introduction',
+    siliconflow: 'https://docs.siliconflow.cn/quickstart',
+    nvidia: 'https://build.nvidia.com/docs/getting-started',
+    openai: 'https://platform.openai.com/docs/quickstart',
+    anthropic: 'https://docs.anthropic.com/en/docs/initial-setup',
+    google: 'https://ai.google.dev/gemini-api/docs/quickstart',
+    xai: 'https://docs.x.ai/docs/quickstart',
+  }
+
   const handleProviderToggle = (providerId: string) => {
     setExpandedProvider((prev) => (prev === providerId ? null : providerId))
     setCustomSelected(false)
@@ -108,6 +122,18 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({
                     <span className={`provider-tag ${PROVIDER_TAGS[provider.id].className}`}>
                       {PROVIDER_TAGS[provider.id].label}
                     </span>
+                  )}
+                  {PROVIDER_TUTORIAL_URLS[provider.id] && (
+                    <button
+                      className="provider-tutorial-link"
+                      title="查看配置教程"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        window.electronAPI.shell.openExternal(PROVIDER_TUTORIAL_URLS[provider.id])
+                      }}
+                    >
+                      教程
+                    </button>
                   )}
                   {PROVIDER_KEY_URLS[provider.id] && (
                     <button
