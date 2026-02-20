@@ -2684,6 +2684,47 @@ body {
   padding: 0 24px 20px;
 }
 
+/* Channel Tutorial Dialog */
+.channel-tutorial-dialog {
+  width: 500px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.channel-tutorial-steps {
+  padding: 16px 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.channel-tutorial-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.channel-tutorial-step-num {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(0, 162, 224, 0.15);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+
+.channel-tutorial-step-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.8);
+}
+
 /* ============================================
    Scrollbar
    ============================================ */

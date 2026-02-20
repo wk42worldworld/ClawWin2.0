@@ -16,6 +16,8 @@ export function ChannelSettings({ onClose, onSaved }: ChannelSettingsProps) {
   const [editingChannel, setEditingChannel] = useState<string | null>(null)
   // 对话框中的临时表单值
   const [dialogFields, setDialogFields] = useState<Record<string, string>>({})
+  // 教程弹窗
+  const [tutorialChannel, setTutorialChannel] = useState<ChannelDef | null>(null)
 
   // 加载当前渠道配置
   useEffect(() => {
@@ -148,12 +150,12 @@ export function ChannelSettings({ onClose, onSaved }: ChannelSettingsProps) {
                     <div className="channel-info">
                       <span className="channel-name">
                         {ch.label}
-                        {ch.tutorialUrl && (
+                        {ch.tutorialSteps && (
                           <button
                             className="channel-tutorial-link"
                             onClick={(e) => {
                               e.stopPropagation()
-                              window.electronAPI.shell.openExternal(ch.tutorialUrl!)
+                              setTutorialChannel(ch)
                             }}
                           >
                             教程
@@ -226,10 +228,13 @@ export function ChannelSettings({ onClose, onSaved }: ChannelSettingsProps) {
                 <div className="channel-dialog-header">
                   <span className="channel-icon"><editingDef.logo /></span>
                   <h3>{editingDef.label} 配置</h3>
-                  {editingDef.tutorialUrl && (
+                  {editingDef.tutorialSteps && (
                     <button
                       className="channel-tutorial-link"
-                      onClick={() => window.electronAPI.shell.openExternal(editingDef.tutorialUrl!)}
+                      onClick={() => {
+                        setEditingChannel(null)
+                        setTutorialChannel(editingDef)
+                      }}
                     >
                       查看教程
                     </button>
@@ -255,6 +260,28 @@ export function ChannelSettings({ onClose, onSaved }: ChannelSettingsProps) {
                 <div className="channel-dialog-actions">
                   <button className="btn-secondary" onClick={handleDialogCancel}>取消</button>
                   <button className="btn-primary" onClick={handleDialogSave}>确认</button>
+                </div>
+              </div>
+            </div>
+          )}
+          {/* 教程弹窗 */}
+          {tutorialChannel && tutorialChannel.tutorialSteps && (
+            <div className="channel-dialog-overlay" onClick={() => setTutorialChannel(null)}>
+              <div className="channel-dialog channel-tutorial-dialog" onClick={(e) => e.stopPropagation()}>
+                <div className="channel-dialog-header">
+                  <span className="channel-icon"><tutorialChannel.logo /></span>
+                  <h3>{tutorialChannel.label} 配置教程</h3>
+                </div>
+                <div className="channel-tutorial-steps">
+                  {tutorialChannel.tutorialSteps.map((step, i) => (
+                    <div key={i} className="channel-tutorial-step">
+                      <span className="channel-tutorial-step-num">{i + 1}</span>
+                      <span className="channel-tutorial-step-text">{step}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="channel-dialog-actions">
+                  <button className="btn-primary" onClick={() => setTutorialChannel(null)}>知道了</button>
                 </div>
               </div>
             </div>
