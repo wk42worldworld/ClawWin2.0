@@ -4,6 +4,9 @@ import type { UpdateInfo, DownloadProgress } from '../../types'
 interface UpdateNotificationProps {
   info: UpdateInfo
   onClose: () => void
+  onBackground?: () => void
+  /** 从后台恢复时，直接进入指定阶段 */
+  initialStage?: 'prompt' | 'done'
 }
 
 function formatBytes(bytes: number): string {
@@ -11,26 +14,64 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export function UpdateNotification({ info, onClose }: UpdateNotificationProps) {
-  const [stage, setStage] = useState<'prompt' | 'downloading' | 'done' | 'error'>('prompt')
+function formatSpeed(bytesPerSec: number): string {
+  if (bytesPerSec < 1024) return `${bytesPerSec.toFixed(0)} B/s`
+  if (bytesPerSec < 1024 * 1024) return `${(bytesPerSec / 1024).toFixed(0)} KB/s`
+  return `${(bytesPerSec / (1024 * 1024)).toFixed(1)} MB/s`
+}
+
+export function UpdateNotification({ info, onClose, onBackground, initialStage }: UpdateNotificationProps) {
+  const [stage, setStage] = useState<'prompt' | 'downloading' | 'done' | 'error'>(initialStage ?? 'prompt')
   const [progress, setProgress] = useState<DownloadProgress>({ percent: 0, transferredBytes: 0, totalBytes: 0 })
+  const [speed, setSpeed] = useState(0)
   const [errorMsg, setErrorMsg] = useState('')
   const [currentVersion, setCurrentVersion] = useState('')
   const unsubRef = useRef<(() => void) | null>(null)
+  const lastBytesRef = useRef(0)
+  const speedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const latestProgressRef = useRef<DownloadProgress>({ percent: 0, transferredBytes: 0, totalBytes: 0 })
+  const rafRef = useRef<number | null>(null)
 
   useEffect(() => {
     window.electronAPI.app.getVersion().then(setCurrentVersion).catch(() => {})
   }, [])
 
-  // 组件卸载时清理进度监听
+  // 组件卸载时清理
   useEffect(() => {
-    return () => { unsubRef.current?.() }
+    return () => {
+      unsubRef.current?.()
+      if (speedTimerRef.current) clearInterval(speedTimerRef.current)
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    }
   }, [])
 
   const handleDownload = async () => {
     setStage('downloading')
     setProgress({ percent: 0, transferredBytes: 0, totalBytes: 0 })
-    unsubRef.current = window.electronAPI.app.onDownloadProgress((p) => setProgress(p))
+    lastBytesRef.current = 0
+    latestProgressRef.current = { percent: 0, transferredBytes: 0, totalBytes: 0 }
+
+    // 用 ref 存储最新进度，通过 rAF 节流更新 state，避免频繁渲染闪烁
+    let rafScheduled = false
+    unsubRef.current = window.electronAPI.app.onDownloadProgress((p) => {
+      latestProgressRef.current = p
+      if (!rafScheduled) {
+        rafScheduled = true
+        rafRef.current = requestAnimationFrame(() => {
+          setProgress(latestProgressRef.current)
+          rafScheduled = false
+        })
+      }
+    })
+
+    // 每秒计算下载速度（仅读取 ref，不触发 setProgress）
+    speedTimerRef.current = setInterval(() => {
+      const transferred = latestProgressRef.current.transferredBytes
+      const delta = transferred - lastBytesRef.current
+      lastBytesRef.current = transferred
+      setSpeed(delta > 0 ? delta : 0)
+    }, 1000)
+
     try {
       await window.electronAPI.app.downloadUpdate()
       setStage('done')
@@ -45,6 +86,9 @@ export function UpdateNotification({ info, onClose }: UpdateNotificationProps) {
     } finally {
       unsubRef.current?.()
       unsubRef.current = null
+      if (speedTimerRef.current) { clearInterval(speedTimerRef.current); speedTimerRef.current = null }
+      if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null }
+      setSpeed(0)
     }
   }
 
@@ -60,6 +104,11 @@ export function UpdateNotification({ info, onClose }: UpdateNotificationProps) {
       setErrorMsg('启动安装程序失败，请到临时目录手动运行安装包')
       setStage('error')
     }
+  }
+
+  const handleBackgroundDownload = () => {
+    // 保持下载继续，只关闭弹窗
+    onBackground?.()
   }
 
   // 下载中不允许点击遮罩关闭
@@ -102,19 +151,25 @@ export function UpdateNotification({ info, onClose }: UpdateNotificationProps) {
         )}
 
         {stage === 'downloading' && (
-          <div className="update-dialog-body">
-            <p className="update-status-text">正在下载更新...</p>
-            <div className="update-progress-bar">
-              <div className="update-progress-fill" style={{ width: `${progress.percent}%` }} />
+          <>
+            <div className="update-dialog-body">
+              <p className="update-status-text">正在下载更新...</p>
+              <div className="update-progress-bar">
+                <div className="update-progress-fill" style={{ width: `${progress.percent}%` }} />
+              </div>
+              <p className="update-progress-text">
+                {progress.percent}%
+                {progress.totalBytes > 0 && ` — ${formatBytes(progress.transferredBytes)} / ${formatBytes(progress.totalBytes)}`}
+                {speed > 0 && ` — ${formatSpeed(speed)}`}
+              </p>
             </div>
-            <p className="update-progress-text">
-              {progress.percent}%
-              {progress.totalBytes > 0 && ` — ${formatBytes(progress.transferredBytes)} / ${formatBytes(progress.totalBytes)}`}
-            </p>
             <div className="update-dialog-actions">
               <button className="btn-secondary" onClick={handleCancel}>取消下载</button>
+              {onBackground && (
+                <button className="btn-secondary" onClick={handleBackgroundDownload}>后台下载</button>
+              )}
             </div>
-          </div>
+          </>
         )}
 
         {stage === 'done' && (

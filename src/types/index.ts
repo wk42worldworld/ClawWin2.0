@@ -80,6 +80,12 @@ interface ElectronSkills {
   saveConfig: (config: SkillsConfig) => Promise<{ ok: boolean; error?: string }>
 }
 
+interface ElectronPairing {
+  list: () => Promise<ChannelPairingGroup[]>
+  approve: (channel: string, code: string) => Promise<{ id: string } | null>
+  channels: () => Promise<string[]>
+}
+
 interface ElectronOllama {
   getStatus: () => Promise<OllamaStatus>
   install: () => Promise<void>
@@ -131,6 +137,7 @@ interface ElectronAPI {
   dialog: ElectronDialog
   file: ElectronFile
   skills: ElectronSkills
+  pairing: ElectronPairing
   ollama: ElectronOllama
 }
 
@@ -274,4 +281,19 @@ export interface HardwareInfo {
   freeMemory: number
   gpuName?: string
   gpuMemory?: number
+}
+
+// ===== Pairing =====
+
+export interface PairingRequest {
+  id: string
+  code: string
+  createdAt: string
+  lastSeenAt: string
+  meta?: Record<string, string>
+}
+
+export interface ChannelPairingGroup {
+  channel: string
+  requests: PairingRequest[]
 }

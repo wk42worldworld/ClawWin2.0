@@ -9,6 +9,7 @@ import { signDeviceAuth, type DeviceAuthParams } from './device-identity'
 import { scanSkills, getSkillsConfig, saveSkillsConfig } from './skills-scanner'
 import { OllamaManager } from './ollama-manager'
 import { checkForUpdate, downloadUpdate, installUpdate, cancelDownload, type UpdateInfo } from './update-checker'
+import { listAllChannelPairings, approvePairingCode, getEnabledChannels } from './pairing-manager'
 
 let mainWindow: BrowserWindow | null = null
 let gatewayManager: GatewayManager | null = null
@@ -756,6 +757,33 @@ function setupIPC() {
 
   ipcMain.handle('skills:saveConfig', (_event, config: Record<string, unknown>) => {
     return saveSkillsConfig(config as Record<string, { enabled?: boolean; apiKey?: string; env?: Record<string, string> }>)
+  })
+
+  // ===== Pairing IPC handlers =====
+  ipcMain.handle('pairing:list', () => {
+    try {
+      return listAllChannelPairings()
+    } catch (err) {
+      console.error('pairing:list failed:', err)
+      return []
+    }
+  })
+
+  ipcMain.handle('pairing:approve', (_event, channel: string, code: string) => {
+    try {
+      return approvePairingCode(channel, code)
+    } catch (err) {
+      console.error('pairing:approve failed:', err)
+      return null
+    }
+  })
+
+  ipcMain.handle('pairing:channels', () => {
+    try {
+      return getEnabledChannels()
+    } catch {
+      return []
+    }
   })
 
   // ===== Ollama IPC handlers =====

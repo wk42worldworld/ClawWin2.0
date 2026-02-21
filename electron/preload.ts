@@ -151,6 +151,16 @@ const electronAPI = {
       ipcRenderer.invoke('skills:saveConfig', config),
   },
 
+  // Pairing
+  pairing: {
+    list: (): Promise<{ channel: string; requests: { id: string; code: string; createdAt: string; lastSeenAt: string; meta?: Record<string, string> }[] }[]> =>
+      ipcRenderer.invoke('pairing:list'),
+    approve: (channel: string, code: string): Promise<{ id: string } | null> =>
+      ipcRenderer.invoke('pairing:approve', channel, code),
+    channels: (): Promise<string[]> =>
+      ipcRenderer.invoke('pairing:channels'),
+  },
+
   // Ollama
   ollama: {
     getStatus: (): Promise<{ installed: boolean; running: boolean; version?: string }> =>

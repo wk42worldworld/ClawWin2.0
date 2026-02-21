@@ -53,6 +53,8 @@ function App() {
   const [showSplashExit, setShowSplashExit] = useState(false)
   const [splashActive, setSplashActive] = useState(false)
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null)
+  const [updateDialogVisible, setUpdateDialogVisible] = useState(true)
+  const [bgDownloadDone, setBgDownloadDone] = useState(false)
   const [appVersion, setAppVersion] = useState('')
   const [updateChecking, setUpdateChecking] = useState(false)
   const [updateCheckResult, setUpdateCheckResult] = useState<string | null>(null)
@@ -130,8 +132,20 @@ function App() {
   useEffect(() => {
     const unsub = window.electronAPI.app.onUpdateAvailable((info) => {
       setUpdateInfo(info)
+      setUpdateDialogVisible(true)
+      setBgDownloadDone(false)
     })
-    return unsub
+    // 主动检查一次（防止后端事件在 React 挂载前已发送而被错过）
+    const timer = setTimeout(() => {
+      window.electronAPI.app.checkForUpdate().then((info) => {
+        if (info) {
+          setUpdateInfo(info)
+          setUpdateDialogVisible(true)
+          setBgDownloadDone(false)
+        }
+      }).catch(() => {})
+    }, 3000)
+    return () => { unsub(); clearTimeout(timer) }
   }, [])
 
   // Save sessions to disk on change (debounced)
@@ -700,6 +714,8 @@ function App() {
                         const info = await window.electronAPI.app.checkForUpdate()
                         if (info) {
                           setUpdateInfo(info)
+                          setUpdateDialogVisible(true)
+                          setBgDownloadDone(false)
                           setShowSettings(false)
                         } else {
                           setUpdateCheckResult('已是最新版本')
@@ -754,6 +770,7 @@ function App() {
           onSaved={() => {
             gateway.restart().catch((err) => console.error('gateway restart failed:', err))
           }}
+          gatewayClient={ws.client}
         />
       )}
 
@@ -765,10 +782,22 @@ function App() {
         />
       )}
 
-      {updateInfo && (
+      {updateInfo && updateDialogVisible && (
         <UpdateNotification
           info={updateInfo}
-          onClose={() => setUpdateInfo(null)}
+          initialStage={bgDownloadDone ? 'done' : 'prompt'}
+          onClose={() => { setUpdateDialogVisible(false); setUpdateInfo(null); setBgDownloadDone(false) }}
+          onBackground={() => {
+            setUpdateDialogVisible(false)
+            // 下载继续在后台进行，监听完成事件
+            const unsub = window.electronAPI.app.onDownloadProgress((p) => {
+              if (p.percent >= 100) {
+                unsub()
+                setBgDownloadDone(true)
+                setUpdateDialogVisible(true)
+              }
+            })
+          }}
         />
       )}
     </ErrorBoundary>

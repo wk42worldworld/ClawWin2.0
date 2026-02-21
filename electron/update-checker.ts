@@ -10,7 +10,9 @@ const MAX_REDIRECTS = 5
 
 // 镜像优先，直连 fallback
 const API_URLS = [
+  `https://mirror.ghproxy.com/https://api.github.com/repos/${REPO}/releases/latest`,
   `https://ghgo.xyz/https://api.github.com/repos/${REPO}/releases/latest`,
+  `https://gh.llkk.cc/https://api.github.com/repos/${REPO}/releases/latest`,
   `https://api.github.com/repos/${REPO}/releases/latest`,
 ]
 
@@ -102,11 +104,16 @@ export async function checkForUpdate(): Promise<UpdateInfo | null> {
   return null
 }
 
-/** 为下载 URL 生成镜像优先的候选列表 */
+/** 为下载 URL 生成候选列表：直连优先，镜像兜底 */
 function getMirrorUrls(originalUrl: string): string[] {
   const urls = [originalUrl]
   if (originalUrl.includes('github.com')) {
-    urls.unshift(`https://ghgo.xyz/${originalUrl}`)
+    // 国内 GitHub 加速镜像作为兜底（直连超时 5 秒后自动切换）
+    urls.push(
+      originalUrl.replace('https://github.com/', 'https://mirror.ghproxy.com/https://github.com/'),
+      `https://ghgo.xyz/${originalUrl}`,
+      originalUrl.replace('https://github.com/', 'https://gh.llkk.cc/https://github.com/'),
+    )
   }
   return urls
 }
@@ -147,7 +154,7 @@ function tryDownload(
   const url = urls[index]
   return new Promise<string>((resolve, reject) => {
     const mod = url.startsWith('https') ? https : http
-    const req = mod.get(url, { headers: { 'User-Agent': 'ClawWin-Updater' }, timeout: 30000 }, (res) => {
+    const req = mod.get(url, { headers: { 'User-Agent': 'ClawWin-Updater' }, timeout: 5000 }, (res) => {
       // 跟随重定向（有深度限制）
       if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
         if (redirectsLeft <= 0) { reject(new Error('Too many redirects')); return }
@@ -164,12 +171,12 @@ function tryDownload(
       let transferredBytes = 0
       const file = fs.createWriteStream(destPath)
 
-      // 数据传输超时：60 秒无数据则中断
-      let dataTimer = setTimeout(() => { req.destroy(); reject(new Error('下载超时')) }, 60000)
+      // 数据传输超时：15 秒无数据则中断，快速回退到下一个源
+      let dataTimer = setTimeout(() => { req.destroy(); reject(new Error('下载超时')) }, 15000)
 
       res.on('data', (chunk: Buffer) => {
         clearTimeout(dataTimer)
-        dataTimer = setTimeout(() => { req.destroy(); reject(new Error('下载超时')) }, 60000)
+        dataTimer = setTimeout(() => { req.destroy(); reject(new Error('下载超时')) }, 15000)
         transferredBytes += chunk.length
         const percent = totalBytes > 0 ? Math.round((transferredBytes / totalBytes) * 100) : 0
         onProgress({ percent, transferredBytes, totalBytes })

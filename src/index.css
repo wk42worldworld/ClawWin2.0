@@ -4355,7 +4355,7 @@ body {
 
 .update-dialog-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 10px;
   padding: 0 24px 20px;
 }
@@ -4391,4 +4391,236 @@ body {
   z-index: 100;
   pointer-events: none;
   animation: toastFadeIn 0.2s ease, toastFadeOut 0.3s ease 1.7s forwards;
+}
+
+/* Pairing Settings (inside Channel Settings) */
+.pairing-section {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.pairing-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.pairing-section-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #e0e0e0;
+}
+
+.pairing-manual-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.75rem;
+}
+
+.pairing-channel-select {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  color: #e0e0e0;
+  font-size: 0.85rem;
+  min-width: 100px;
+  outline: none;
+}
+
+.pairing-channel-select:focus {
+  border-color: rgba(0, 162, 224, 0.5);
+}
+
+.pairing-code-input {
+  flex: 1;
+  max-width: 160px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+}
+
+.pairing-no-channels {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.85rem;
+}
+
+.pairing-status {
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.pairing-status.success {
+  background: rgba(34, 197, 94, 0.1);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.pairing-status.error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.pairing-requests-list {
+  margin-top: 0.75rem;
+}
+
+.pairing-channel-group {
+  margin-bottom: 1rem;
+}
+
+.pairing-channel-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgba(0, 162, 224, 0.8);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 0.5rem;
+  padding-left: 0.25rem;
+}
+
+.pairing-request-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  margin-bottom: 0.4rem;
+  transition: background 0.15s;
+}
+
+.pairing-request-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.pairing-request-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.pairing-request-code {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #00A2E0;
+  letter-spacing: 2px;
+  flex-shrink: 0;
+}
+
+.pairing-request-id {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pairing-request-time {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.pairing-approve-btn {
+  font-size: 0.8rem !important;
+  padding: 0.3rem 0.75rem !important;
+  flex-shrink: 0;
+  margin-left: 0.5rem;
+}
+
+/* WhatsApp QR Dialog */
+.whatsapp-qr-dialog {
+  max-width: 400px;
+}
+
+.whatsapp-qr-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 200px;
+  justify-content: center;
+}
+
+.whatsapp-qr-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.whatsapp-qr-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #25D366;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.whatsapp-qr-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.whatsapp-qr-image {
+  width: 240px;
+  height: 240px;
+  border-radius: 12px;
+  background: white;
+  padding: 8px;
+}
+
+.whatsapp-qr-hint {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.8rem;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.whatsapp-qr-waiting {
+  color: #25D366;
+  font-size: 0.85rem;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.whatsapp-qr-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  color: #4ade80;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.whatsapp-qr-error {
+  color: #f87171;
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 1rem 0;
 }

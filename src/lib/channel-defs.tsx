@@ -52,6 +52,12 @@ const IMessageLogo = () => (
     <path d="M12 2C6.477 2 2 5.813 2 10.5c0 2.34 1.094 4.46 2.875 6.031-.188 1.375-.875 2.625-.875 2.625s2.563-.313 4.063-1.281A12.1 12.1 0 0012 19c5.523 0 10-3.813 10-8.5S17.523 2 12 2z" fill="#34C759"/>
   </svg>
 )
+const LineLogo = () => (
+  <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
+    <path d="M12 2C6.48 2 2 5.83 2 10.45c0 4.18 3.7 7.68 8.7 8.34.34.07.8.22.91.51.1.26.07.67.03.94l-.15.88c-.04.26-.2 1.01.89.55.59-.25 3.2-1.89 4.36-3.23C18.68 15.93 22 13.46 22 10.45 22 5.83 17.52 2 12 2z" fill="#06C755"/>
+    <path d="M8.53 8.87H7.72a.28.28 0 00-.28.28v3.42c0 .15.12.28.28.28h.81c.15 0 .28-.13.28-.28V9.15a.28.28 0 00-.28-.28zm7.72 0h-.81a.28.28 0 00-.28.28v2.03l-1.15-2.18a.28.28 0 00-.25-.13h-.81a.28.28 0 00-.28.28v3.42c0 .15.12.28.28.28h.81c.15 0 .28-.13.28-.28v-2.03l1.15 2.18c.04.08.13.13.25.13h.81c.15 0 .28-.13.28-.28V9.15a.28.28 0 00-.28-.28zm-5.09 0h-.81a.28.28 0 00-.28.28v3.42c0 .15.12.28.28.28h.81c.15 0 .28-.13.28-.28V9.15a.28.28 0 00-.28-.28zm-2.03 2.77H7.97V9.15a.28.28 0 00-.28-.28h-.81a.28.28 0 00-.28.28v3.42c0 .15.12.28.28.28h2.25c.15 0 .28-.13.28-.28v-.65a.28.28 0 00-.28-.28z" fill="white"/>
+  </svg>
+)
 const DingTalkLogo = () => (
   <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
     <rect width="24" height="24" rx="4" fill="#0089FF"/>
@@ -101,7 +107,10 @@ export const CHANNELS: ChannelDef[] = [
       '按提示输入机器人名称和用户名（用户名需以 bot 结尾）',
       'BotFather 会返回一个 Bot Token（格式如 123456:ABC-DEF...）',
       '将 Bot Token 粘贴到下方输入框，启用频道',
-      '启动 ClawWin 后，在 Telegram 中搜索你的机器人并发送消息即可对话',
+      '启动 ClawWin 后，在 Telegram 中搜索你的机器人',
+      '首次使用时向机器人发送 /pair，获取 8 位配对码',
+      '回到 ClawWin 聊天工具面板 → 配对管理，输入配对码并批准',
+      '批准后即可正常与机器人对话',
     ],
     fields: [
       { key: 'botToken', label: 'Bot Token', placeholder: '123456:ABC-DEF...', required: true },
@@ -114,10 +123,12 @@ export const CHANNELS: ChannelDef[] = [
     logo: WhatsAppLogo,
     tutorialSteps: [
       '启用 WhatsApp 频道（无需填写任何配置）',
-      '启动 ClawWin 后，终端会显示一个 QR 码',
+      '保存后，点击 WhatsApp 卡片上的"扫码连接"按钮',
       '打开手机 WhatsApp → 设置 → 已关联设备 → 关联设备',
-      '扫描终端中的 QR 码完成配对',
-      '配对成功后，向你的 WhatsApp 号码发送消息即可与 AI 对话',
+      '用手机扫描界面上显示的 QR 码完成关联',
+      '关联成功后，用户向你的 WhatsApp 号码发送 /pair 获取配对码',
+      '回到 ClawWin 聊天工具面板 → 配对管理，输入配对码并批准',
+      '批准后即可正常与 AI 对话',
     ],
     fields: [],
   },
@@ -132,7 +143,9 @@ export const CHANNELS: ChannelDef[] = [
       '在 Bot 页面开启 Message Content Intent（Privileged Gateway Intents 下）',
       '进入 OAuth2 → URL Generator，勾选 bot 权限，生成邀请链接并邀请到你的服务器',
       '将 Bot Token 粘贴到下方输入框，启用频道',
-      '启动 ClawWin 后，在 Discord 服务器中 @你的机器人 即可对话',
+      '启动 ClawWin 后，在 Discord 服务器中向机器人发送 /pair 获取配对码',
+      '回到 ClawWin 聊天工具面板 → 配对管理，输入配对码并批准',
+      '批准后即可 @你的机器人 正常对话',
     ],
     fields: [
       { key: 'token', label: 'Bot Token', placeholder: 'MTk...', required: true },
@@ -149,12 +162,17 @@ export const CHANNELS: ChannelDef[] = [
       '进入 添加应用能力 → 添加「机器人」能力',
       '进入 权限管理，搜索并开通：im:message、im:message.group_at_msg、im:chat',
       '进入 事件订阅 → 使用长连接模式（WebSocket），添加 im.message.receive_v1 事件',
-      '将 App ID 和 App Secret 粘贴到下方输入框，启用频道',
-      '发布应用版本，管理员审批通过后，在飞书中搜索机器人名称发消息即可',
+      '将 App ID 和 App Secret 粘贴到下方输入框（如有 Encrypt Key / Verification Token 也一并填入），启用频道',
+      '发布应用版本，管理员审批通过后，在飞书中搜索机器人名称',
+      '首次使用时向机器人发送 /pair 获取配对码',
+      '回到 ClawWin 聊天工具面板 → 配对管理，输入配对码并批准',
+      '批准后即可正常与机器人对话',
     ],
     fields: [
       { key: 'appId', label: 'App ID', placeholder: 'cli_xxx', required: true },
       { key: 'appSecret', label: 'App Secret', placeholder: '请输入 App Secret', required: true },
+      { key: 'encryptKey', label: 'Encrypt Key', placeholder: '请输入 Encrypt Key（可选）', required: false },
+      { key: 'verificationToken', label: 'Verification Token', placeholder: '请输入 Verification Token（可选）', required: false },
     ],
   },
   {
@@ -169,7 +187,9 @@ export const CHANNELS: ChannelDef[] = [
       '进入 Event Subscriptions，启用事件，订阅 app_mention 和 message.im 事件',
       '点击 Install to Workspace 安装应用，复制 xoxb-... 开头的 Bot Token',
       '将 Bot Token 和 App Token 粘贴到下方输入框，启用频道',
-      '启动 ClawWin 后，在 Slack 中 @你的机器人 或私聊即可对话',
+      '启动 ClawWin 后，在 Slack 中向机器人发送 /pair 获取配对码',
+      '回到 ClawWin 聊天工具面板 → 配对管理，输入配对码并批准',
+      '批准后即可 @你的机器人 或私聊正常对话',
     ],
     fields: [
       { key: 'botToken', label: 'Bot Token', placeholder: 'xoxb-...', required: true },
@@ -187,7 +207,9 @@ export const CHANNELS: ChannelDef[] = [
       '连接方式选择 HTTP endpoint URL，填入 ClawWin 网关地址',
       '设置可见性（组织内部或特定用户）',
       '启用 Google Chat 频道（无需在 ClawWin 中填写额外配置）',
-      '在 Google Chat 中搜索你的应用名称，发送消息即可对话',
+      '在 Google Chat 中搜索你的应用名称，发送 /pair 获取配对码',
+      '回到 ClawWin 聊天工具面板 → 配对管理，输入配对码并批准',
+      '批准后即可正常对话',
     ],
     fields: [],
   },
@@ -201,10 +223,33 @@ export const CHANNELS: ChannelDef[] = [
       '运行 signal-cli link 生成二维码链接',
       '打开手机 Signal → 设置 → 已关联设备 → 扫描二维码完成关联',
       '如需指定账号，在下方输入框填写手机号（可选）',
-      '启用频道后，启动 ClawWin，向关联的 Signal 号码发消息即可对话',
+      '启用频道后，启动 ClawWin，向关联的 Signal 号码发送 /pair 获取配对码',
+      '回到 ClawWin 聊天工具面板 → 配对管理，输入配对码并批准',
+      '批准后即可正常对话',
     ],
     fields: [
       { key: 'account', label: '账号', placeholder: '+86...', required: false },
+    ],
+  },
+  {
+    id: 'line',
+    label: 'LINE',
+    blurb: '通过 LINE Messaging API 集成',
+    logo: LineLogo,
+    tutorialSteps: [
+      '访问 developers.line.biz → 创建 Provider → 创建 Messaging API Channel',
+      '进入 Channel 设置 → Messaging API 页签',
+      '在页面底部点击 Issue 生成 Channel Access Token（长期）',
+      '复制 Channel Access Token 和 Channel Secret',
+      '将 Token 和 Secret 粘贴到下方输入框，启用频道',
+      '在 LINE 中搜索机器人名称或扫描 QR 码添加好友',
+      '向机器人发送 /pair 获取配对码',
+      '回到 ClawWin 聊天工具面板 → 配对管理，输入配对码并批准',
+      '批准后即可正常对话',
+    ],
+    fields: [
+      { key: 'channelAccessToken', label: 'Channel Access Token', placeholder: '请输入 Channel Access Token', required: true },
+      { key: 'channelSecret', label: 'Channel Secret', placeholder: '请输入 Channel Secret', required: true },
     ],
   },
   {
@@ -212,56 +257,27 @@ export const CHANNELS: ChannelDef[] = [
     label: '钉钉',
     blurb: '钉钉开放平台 Stream 模式机器人',
     logo: DingTalkLogo,
-    tutorialSteps: [
-      '访问 open.dingtalk.com → 应用开发 → 创建企业内部应用',
-      '进入应用 → 凭证与基础信息，复制 Client ID (AppKey) 和 Client Secret (AppSecret)',
-      '进入 消息推送 → 选择 Stream 模式（长连接）',
-      '进入 机器人配置 → 开启机器人能力',
-      '将 Client ID 和 Client Secret 粘贴到下方输入框，启用频道',
-      '在钉钉中搜索机器人名称或在群中 @机器人 即可对话',
-    ],
-    fields: [
-      { key: 'clientId', label: 'Client ID (AppKey)', placeholder: 'dingxxxxxxx', required: true },
-      { key: 'clientSecret', label: 'Client Secret (AppSecret)', placeholder: '请输入 AppSecret', required: true },
-    ],
+    fields: [],
+    disabled: true,
+    disabledReason: '即将支持',
   },
   {
     id: 'wechat',
     label: '微信（企业微信）',
     blurb: '通过企业微信应用 API 接收和发送消息',
     logo: WeChatLogo,
-    tutorialSteps: [
-      '登录企业微信管理后台 work.weixin.qq.com',
-      '进入 我的企业，复制企业 ID (CorpID)',
-      '进入 应用管理 → 创建应用，记录 AgentId 和 Secret',
-      '进入应用详情 → 接收消息 → 设置 API 接收，记录 Token 和 EncodingAESKey（可选）',
-      '将企业 ID、AgentId、Secret 粘贴到下方输入框，启用频道',
-      '在企业微信中找到该应用，发送消息即可与 AI 对话',
-    ],
-    fields: [
-      { key: 'corpId', label: '企业 ID (CorpID)', placeholder: 'ww...', required: true },
-      { key: 'agentId', label: '应用 AgentId', placeholder: '1000002', required: true },
-      { key: 'secret', label: '应用 Secret', placeholder: '请输入应用 Secret', required: true },
-      { key: 'token', label: '回调 Token', placeholder: '请输入 Token（可选）', required: false },
-      { key: 'encodingAESKey', label: 'EncodingAESKey', placeholder: '请输入 EncodingAESKey（可选）', required: false },
-    ],
+    fields: [],
+    disabled: true,
+    disabledReason: '即将支持',
   },
   {
     id: 'qq',
     label: 'QQ',
     blurb: 'QQ 开放平台官方机器人 API',
     logo: QQLogo,
-    tutorialSteps: [
-      '访问 q.qq.com → QQ 开放平台 → 创建机器人应用',
-      '完成应用信息填写和审核',
-      '进入应用详情，复制 Bot AppID 和 App Secret',
-      '将 AppID 和 Secret 粘贴到下方输入框，启用频道',
-      '审核通过后，在 QQ 中搜索机器人名称或在群中 @机器人 即可对话',
-    ],
-    fields: [
-      { key: 'appId', label: 'App ID', placeholder: '请输入 Bot AppID', required: true },
-      { key: 'secret', label: 'App Secret', placeholder: '请输入 App Secret', required: true },
-    ],
+    fields: [],
+    disabled: true,
+    disabledReason: '即将支持',
   },
   {
     id: 'imessage',
