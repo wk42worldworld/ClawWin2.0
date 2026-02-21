@@ -51,4 +51,5 @@ export const SKILL_CN: Record<string, string> = {
   'voice-call': '语音通话发起与管理',
   'wacli': 'WhatsApp消息发送与搜索',
   'weather': '天气预报查询(无需密钥)',
+  'windows-control': 'Windows桌面控制与自动化',
 }

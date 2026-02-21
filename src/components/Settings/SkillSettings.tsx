@@ -250,7 +250,7 @@ export function SkillSettings({ onClose }: SkillSettingsProps) {
               onClick={handleSave}
               disabled={saving}
             >
-              {saving ? '保存中...' : '保存'}
+              {saving ? '应用中...' : '应用新技能'}
             </button>
           </div>
         </div>

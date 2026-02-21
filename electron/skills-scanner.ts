@@ -191,6 +191,7 @@ const FALLBACK_REQUIREMENTS: Record<string, { bins?: string[]; anyBins?: string[
   'voice-call': { needsConfig: true },
   'wacli': { bins: ['wacli'] },
   'weather': {},
+  'windows-control': { os: ['win32'] },
 }
 
 /**

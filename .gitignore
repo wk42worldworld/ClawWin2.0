@@ -3,6 +3,11 @@ dist/
 dist-electron/
 release/
 bundled/
+!bundled/openclaw/
+bundled/openclaw/*
+!bundled/openclaw/skills/
+bundled/openclaw/skills/*
+!bundled/openclaw/skills/windows-control/
 *.exe
 *.log
 .DS_Store

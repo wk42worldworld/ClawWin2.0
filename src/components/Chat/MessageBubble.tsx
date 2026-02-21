@@ -23,6 +23,53 @@ function filePathToUrl(filePath: string): string {
   return `file://${encoded}`
 }
 
+interface ContentSegment {
+  type: 'text' | 'image'
+  value: string
+}
+
+/**
+ * Parse message content for embedded screenshot/image references.
+ * Detects multiple formats:
+ *   1. [screenshot: C:\path\to\file.jpg]
+ *   2. `C:\path\to\file.png` (backtick-wrapped)
+ *   3. Bare Windows paths like C:\...\file.jpg
+ *   4. Bare Unix paths like /tmp/.../file.png
+ */
+function parseContentWithImages(content: string): ContentSegment[] {
+  const imgExts = 'jpg|jpeg|png|gif|webp|bmp'
+  // Match: [screenshot: path], `path`, or bare Windows/Unix image paths
+  const pattern = new RegExp(
+    '\\[screenshot:\\s*([^\\]]+\\.(?:' + imgExts + '))\\s*\\]' +
+    '|`([A-Za-z]:\\\\[^`]+\\.(?:' + imgExts + '))`' +
+    '|`(/[^`]+\\.(?:' + imgExts + '))`' +
+    '|(?<![`\\w])([A-Za-z]:\\\\[^\\s"\'<>]+\\.(?:' + imgExts + '))(?![`\\w])',
+    'gi'
+  )
+  const segments: ContentSegment[] = []
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+
+  while ((match = pattern.exec(content)) !== null) {
+    const filePath = (match[1] || match[2] || match[3] || match[4]).trim()
+    if (match.index > lastIndex) {
+      segments.push({ type: 'text', value: content.slice(lastIndex, match.index) })
+    }
+    segments.push({ type: 'image', value: filePath })
+    lastIndex = match.index + match[0].length
+  }
+
+  if (lastIndex < content.length) {
+    segments.push({ type: 'text', value: content.slice(lastIndex) })
+  }
+
+  if (segments.length === 0) {
+    segments.push({ type: 'text', value: content })
+  }
+
+  return segments
+}
+
 interface MessageBubbleProps {
   message: ChatMessage
   onCopy?: () => void
@@ -91,7 +138,24 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onCopy, o
           )}
           {(displayContent || isStreaming) && (
             <div className="message-text">
-              {displayContent || (isStreaming ? '...' : '')}
+              {!isUser && displayContent ? (
+                parseContentWithImages(displayContent).map((segment, idx) => {
+                  if (segment.type === 'image') {
+                    return (
+                      <img
+                        key={`inline-img-${idx}`}
+                        src={filePathToUrl(segment.value)}
+                        alt="screenshot"
+                        className="message-inline-screenshot"
+                        onClick={() => handleFileClick(segment.value)}
+                      />
+                    )
+                  }
+                  return <span key={`text-${idx}`}>{segment.value}</span>
+                })
+              ) : (
+                displayContent || (isStreaming ? '...' : '')
+              )}
               {isStreaming && <span className="streaming-cursor" />}
             </div>
           )}

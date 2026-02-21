@@ -4186,6 +4186,21 @@ body {
   max-height: 120px;
 }
 
+/* Inline screenshot images in assistant message text */
+.message-inline-screenshot {
+  display: block;
+  max-width: 100%;
+  max-height: 400px;
+  border-radius: 8px;
+  cursor: pointer;
+  object-fit: contain;
+  margin: 8px 0;
+  transition: transform 0.15s;
+}
+.message-inline-screenshot:hover {
+  transform: scale(1.02);
+}
+
 /* Non-image file attachment */
 .message-attachment-file {
   display: flex;

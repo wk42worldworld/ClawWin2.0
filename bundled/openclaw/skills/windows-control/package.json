@@ -1,0 +1,22 @@
+{
+  "name": "windows-control",
+  "version": "1.0.0",
+  "description": "Full Windows desktop control. Mouse, keyboard, screenshots - interact with any Windows application like a human.",
+  "main": "SKILL.md",
+  "keywords": [
+    "windows",
+    "automation",
+    "desktop",
+    "control",
+    "gui",
+    "mouse",
+    "keyboard",
+    "openclaw"
+  ],
+  "author": "Spliff7AI",
+  "license": "MIT",
+  "files": [
+    "SKILL.md",
+    "scripts/"
+  ]
+}
