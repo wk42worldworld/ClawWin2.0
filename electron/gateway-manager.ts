@@ -1,4 +1,4 @@
-import { ChildProcess, spawn } from 'node:child_process'
+import { ChildProcess, spawn, execSync } from 'node:child_process'
 import net from 'node:net'
 import http from 'node:http'
 import path from 'node:path'
@@ -50,11 +50,19 @@ export class GatewayManager {
     // 先检测端口是否已被占用（已有 Gateway 在运行）
     const portInUse = await this.isPortInUse(this.opts.port)
     if (portInUse) {
-      this.log('info', `检测到 Gateway 已在端口 ${this.opts.port} 运行，直接连接`)
-      this.externalGateway = true
-      this.setState('ready')
-      this.startHealthCheck()
-      return
+      // 尝试终止残留的旧网关进程，确保使用最新配置
+      this.log('info', `检测到端口 ${this.opts.port} 被占用，正在终止旧进程...`)
+      await this.killProcessOnPort(this.opts.port)
+      // 等待端口释放
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      const stillInUse = await this.isPortInUse(this.opts.port)
+      if (stillInUse) {
+        this.log('warn', `端口 ${this.opts.port} 仍被占用，尝试连接已有 Gateway`)
+        this.externalGateway = true
+        this.setState('ready')
+        this.startHealthCheck()
+        return
+      }
     }
 
     this.externalGateway = false
@@ -360,6 +368,55 @@ export class GatewayManager {
         this.log('error', '连续健康检查失败，自动重启 Gateway...')
         this.restart()
       }
+    }
+  }
+
+  /**
+   * 终止占用指定端口的进程
+   */
+  private async killProcessOnPort(port: number): Promise<void> {
+    try {
+      if (process.platform === 'win32') {
+        // Windows: 通过 netstat 找到占用端口的 PID 并终止
+        const output = execSync(
+          `netstat -ano | findstr "LISTENING" | findstr ":${port}"`,
+          { encoding: 'utf-8', timeout: 5000 }
+        )
+        const pids = new Set<string>()
+        for (const line of output.split('\n')) {
+          const parts = line.trim().split(/\s+/)
+          const pid = parts[parts.length - 1]
+          if (pid && /^\d+$/.test(pid) && pid !== '0') pids.add(pid)
+        }
+        for (const pid of pids) {
+          try {
+            execSync(`taskkill /PID ${pid} /F`, { timeout: 5000 })
+            this.log('info', `已终止旧 Gateway 进程 (PID: ${pid})`)
+          } catch {
+            // 进程可能已退出
+          }
+        }
+      } else {
+        // macOS / Linux: 通过 lsof 找到占用端口的 PID 并终止
+        try {
+          const output = execSync(
+            `lsof -ti :${port}`,
+            { encoding: 'utf-8', timeout: 5000 }
+          )
+          for (const pid of output.trim().split('\n').filter(Boolean)) {
+            try {
+              process.kill(Number(pid), 'SIGTERM')
+              this.log('info', `已终止旧 Gateway 进程 (PID: ${pid})`)
+            } catch {
+              // 进程可能已退出
+            }
+          }
+        } catch {
+          // lsof 没找到进程
+        }
+      }
+    } catch {
+      // 找不到进程或命令执行失败，忽略
     }
   }
 }

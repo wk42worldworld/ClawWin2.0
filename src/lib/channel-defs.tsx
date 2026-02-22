@@ -84,6 +84,41 @@ const QQLogo = () => (
   </svg>
 )
 
+/** 飞书权限批量导入 JSON（来自 openclaw-feishu 官方指南） */
+export const FEISHU_PERMISSIONS_JSON = `{
+  "scopes": {
+    "tenant": [
+      "aily:file:read",
+      "aily:file:write",
+      "application:application.app_message_stats.overview:readonly",
+      "application:application:self_manage",
+      "application:bot.menu:write",
+      "cardkit:card:write",
+      "contact:user.employee_id:readonly",
+      "corehr:file:download",
+      "docs:document.content:read",
+      "event:ip_list",
+      "im:chat",
+      "im:chat.access_event.bot_p2p_chat:read",
+      "im:chat.members:bot_access",
+      "im:message",
+      "im:message.group_at_msg:readonly",
+      "im:message.group_msg",
+      "im:message.p2p_msg:readonly",
+      "im:message:readonly",
+      "im:message:send_as_bot",
+      "im:resource",
+      "sheets:spreadsheet",
+      "wiki:wiki:readonly"
+    ],
+    "user": [
+      "aily:file:read",
+      "aily:file:write",
+      "im:chat.access_event.bot_p2p_chat:read"
+    ]
+  }
+}`
+
 /** 渠道定义 */
 export interface ChannelDef {
   id: string
@@ -94,6 +129,8 @@ export interface ChannelDef {
   disabled?: boolean
   disabledReason?: string
   tutorialSteps?: string[]
+  /** 权限批量导入 JSON，在教程弹窗中显示"复制权限配置"按钮 */
+  permissionsJson?: string
 }
 
 export const CHANNELS: ChannelDef[] = [
@@ -108,7 +145,7 @@ export const CHANNELS: ChannelDef[] = [
       'BotFather 会返回一个 Bot Token（格式如 123456:ABC-DEF...）',
       '将 Bot Token 粘贴到下方输入框，启用频道',
       '启动 ClawWin 后，在 Telegram 中搜索你的机器人',
-      '首次使用时向机器人发送 /pair，获取 8 位配对码',
+      '向机器人发送任意消息，机器人会自动回复 8 位配对码',
       '回到 ClawWin 聊天工具面板 → 配对管理，输入配对码并批准',
       '批准后即可正常与机器人对话',
     ],
@@ -126,7 +163,7 @@ export const CHANNELS: ChannelDef[] = [
       '保存后，点击 WhatsApp 卡片上的"扫码连接"按钮',
       '打开手机 WhatsApp → 设置 → 已关联设备 → 关联设备',
       '用手机扫描界面上显示的 QR 码完成关联',
-      '关联成功后，用户向你的 WhatsApp 号码发送 /pair 获取配对码',
+      '关联成功后，用户向你的 WhatsApp 号码发送任意消息，机器人会自动回复 8 位配对码',
       '回到 ClawWin 聊天工具面板 → 配对管理，输入配对码并批准',
       '批准后即可正常与 AI 对话',
     ],
@@ -138,12 +175,12 @@ export const CHANNELS: ChannelDef[] = [
     blurb: '通过 Discord Bot API 集成',
     logo: DiscordLogo,
     tutorialSteps: [
-      '访问 discord.com/developers/applications，点击 New Application',
+      '访问 discord.com/developers/applications，点击 New Application 创建应用',
       '进入应用 → Bot 页面，点击 Reset Token 获取 Bot Token',
-      '在 Bot 页面开启 Message Content Intent（Privileged Gateway Intents 下）',
-      '进入 OAuth2 → URL Generator，勾选 bot 权限，生成邀请链接并邀请到你的服务器',
+      '在 Bot 页面下方找到 Privileged Gateway Intents，开启「Message Content Intent」开关（允许机器人读取消息内容）',
+      '进入 OAuth2 → URL Generator，勾选 bot，在下方权限中勾选 Send Messages 和 Read Message History，复制生成的链接在浏览器打开，将机器人邀请到你的服务器',
       '将 Bot Token 粘贴到下方输入框，启用频道',
-      '启动 ClawWin 后，在 Discord 服务器中向机器人发送 /pair 获取配对码',
+      '启动 ClawWin 后，在 Discord 服务器中向机器人发送任意消息，机器人会自动回复 8 位配对码',
       '回到 ClawWin 聊天工具面板 → 配对管理，输入配对码并批准',
       '批准后即可 @你的机器人 正常对话',
     ],
@@ -160,14 +197,16 @@ export const CHANNELS: ChannelDef[] = [
       '访问 open.feishu.cn → 开发者后台 → 创建企业自建应用',
       '进入应用 → 凭证与基础信息，复制 App ID 和 App Secret',
       '进入 添加应用能力 → 添加「机器人」能力',
-      '进入 权限管理，搜索并开通：im:message、im:message.group_at_msg、im:chat',
-      '进入 事件订阅 → 使用长连接模式（WebSocket），添加 im.message.receive_v1 事件',
-      '将 App ID 和 App Secret 粘贴到下方输入框（如有 Encrypt Key / Verification Token 也一并填入），启用频道',
+      '进入 权限管理 → 点击「批量导入」，粘贴下方权限配置 JSON 一键导入所有权限',
+      '将 App ID 和 App Secret 粘贴到下方输入框（如有 Encrypt Key / Verification Token 也一并填入），开启开关并点击保存',
+      '保存后 ClawWin 会自动连接飞书（通过 WebSocket 长连接），等待连接成功',
+      '回到飞书开发者后台 → 事件与回调 → 确认长连接模式已生效，添加「接收消息」事件（im.message.receive_v1）',
       '发布应用版本，管理员审批通过后，在飞书中搜索机器人名称',
-      '首次使用时向机器人发送 /pair 获取配对码',
+      '首次使用时向机器人发送任意消息，机器人会自动回复 8 位配对码',
       '回到 ClawWin 聊天工具面板 → 配对管理，输入配对码并批准',
       '批准后即可正常与机器人对话',
     ],
+    permissionsJson: FEISHU_PERMISSIONS_JSON,
     fields: [
       { key: 'appId', label: 'App ID', placeholder: 'cli_xxx', required: true },
       { key: 'appSecret', label: 'App Secret', placeholder: '请输入 App Secret', required: true },
@@ -181,13 +220,13 @@ export const CHANNELS: ChannelDef[] = [
     blurb: '通过 Socket Mode 连接 Slack 工作区',
     logo: SlackLogo,
     tutorialSteps: [
-      '访问 api.slack.com/apps → Create New App → From scratch',
-      '进入 Socket Mode，启用 Socket Mode，创建 App-Level Token（权限选 connections:write），复制 xapp-... 开头的 Token',
-      '进入 OAuth & Permissions，添加 Bot Token Scopes：chat:write、app_mentions:read、im:history、im:read、im:write',
-      '进入 Event Subscriptions，启用事件，订阅 app_mention 和 message.im 事件',
-      '点击 Install to Workspace 安装应用，复制 xoxb-... 开头的 Bot Token',
+      '访问 api.slack.com/apps → Create New App → From scratch，创建一个新应用',
+      '左侧菜单进入 Socket Mode 并启用，点击生成一个 App-Level Token（权限选 connections:write），复制 xapp-... 开头的 Token',
+      '左侧菜单进入 OAuth & Permissions，在 Bot Token Scopes 中添加以下权限：chat:write（发消息）、app_mentions:read（读取@提及）、im:history（私聊历史）、im:read（读私聊）、im:write（写私聊）',
+      '左侧菜单进入 Event Subscriptions 并启用，在 Subscribe to bot events 中添加：app_mention（被@时触发）和 message.im（收到私聊时触发）',
+      '点击页面顶部 Install to Workspace 将应用安装到工作区，安装后复制 xoxb-... 开头的 Bot Token',
       '将 Bot Token 和 App Token 粘贴到下方输入框，启用频道',
-      '启动 ClawWin 后，在 Slack 中向机器人发送 /pair 获取配对码',
+      '启动 ClawWin 后，在 Slack 中向机器人发送任意消息，机器人会自动回复 8 位配对码',
       '回到 ClawWin 聊天工具面板 → 配对管理，输入配对码并批准',
       '批准后即可 @你的机器人 或私聊正常对话',
     ],
@@ -199,37 +238,20 @@ export const CHANNELS: ChannelDef[] = [
   {
     id: 'googlechat',
     label: 'Google Chat',
-    blurb: '带有 HTTP webhook 的 Google Workspace 聊天应用',
+    blurb: '需要公网服务器，不支持本地运行',
     logo: GoogleChatLogo,
-    tutorialSteps: [
-      '访问 console.cloud.google.com → 创建项目 → 启用 Google Chat API',
-      '进入 Google Chat API 配置页，填写应用名称和头像',
-      '连接方式选择 HTTP endpoint URL，填入 ClawWin 网关地址',
-      '设置可见性（组织内部或特定用户）',
-      '启用 Google Chat 频道（无需在 ClawWin 中填写额外配置）',
-      '在 Google Chat 中搜索你的应用名称，发送 /pair 获取配对码',
-      '回到 ClawWin 聊天工具面板 → 配对管理，输入配对码并批准',
-      '批准后即可正常对话',
-    ],
     fields: [],
+    disabled: true,
+    disabledReason: '需要公网服务器',
   },
   {
     id: 'signal',
     label: 'Signal',
-    blurb: '通过 signal-cli 链接设备',
+    blurb: '需要安装 signal-cli 和 Java 环境',
     logo: SignalLogo,
-    tutorialSteps: [
-      '安装 signal-cli：访问 github.com/AsamK/signal-cli 下载最新版本',
-      '运行 signal-cli link 生成二维码链接',
-      '打开手机 Signal → 设置 → 已关联设备 → 扫描二维码完成关联',
-      '如需指定账号，在下方输入框填写手机号（可选）',
-      '启用频道后，启动 ClawWin，向关联的 Signal 号码发送 /pair 获取配对码',
-      '回到 ClawWin 聊天工具面板 → 配对管理，输入配对码并批准',
-      '批准后即可正常对话',
-    ],
-    fields: [
-      { key: 'account', label: '账号', placeholder: '+86...', required: false },
-    ],
+    fields: [],
+    disabled: true,
+    disabledReason: '需要 signal-cli',
   },
   {
     id: 'line',
@@ -243,7 +265,7 @@ export const CHANNELS: ChannelDef[] = [
       '复制 Channel Access Token 和 Channel Secret',
       '将 Token 和 Secret 粘贴到下方输入框，启用频道',
       '在 LINE 中搜索机器人名称或扫描 QR 码添加好友',
-      '向机器人发送 /pair 获取配对码',
+      '向机器人发送任意消息，机器人会自动回复 8 位配对码',
       '回到 ClawWin 聊天工具面板 → 配对管理，输入配对码并批准',
       '批准后即可正常对话',
     ],

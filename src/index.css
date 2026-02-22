@@ -2735,6 +2735,78 @@ body {
   color: rgba(255, 255, 255, 0.8);
 }
 
+/* 权限配置 JSON 区域 */
+.channel-permissions-section {
+  padding: 0 24px 16px;
+}
+
+.channel-permissions-toggle {
+  width: 100%;
+  text-align: center;
+  font-size: 13px;
+  padding: 8px 16px;
+  border: 1px dashed rgba(0, 162, 224, 0.4);
+  color: var(--accent);
+  background: rgba(0, 162, 224, 0.05);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.channel-permissions-toggle:hover {
+  background: rgba(0, 162, 224, 0.12);
+  border-color: var(--accent);
+}
+
+.channel-permissions-toggle.active {
+  border-style: solid;
+  background: rgba(0, 162, 224, 0.1);
+}
+
+.channel-permissions-content {
+  margin-top: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.channel-permissions-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.channel-permissions-hint {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  flex: 1;
+  margin-right: 8px;
+}
+
+.channel-permissions-copy-btn {
+  flex-shrink: 0;
+  font-size: 12px;
+  padding: 4px 12px;
+  min-width: 56px;
+}
+
+.channel-permissions-json {
+  padding: 12px;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(0, 0, 0, 0.3);
+  white-space: pre;
+  overflow-x: auto;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
 /* ============================================
    Scrollbar
    ============================================ */
@@ -4454,6 +4526,7 @@ body {
   padding: 0.5rem 0.75rem;
   border-radius: 8px;
   font-size: 0.85rem;
+  margin-top: 0.75rem;
   margin-bottom: 1rem;
 }
 

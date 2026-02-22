@@ -816,6 +816,27 @@ function initGatewayManager() {
   })
 }
 
+// 单实例锁：防止同时运行多个 ClawWin
+const gotTheLock = app.requestSingleInstanceLock()
+if (!gotTheLock) {
+  dialog.showMessageBoxSync({
+    type: 'warning',
+    title: 'ClawWin',
+    message: 'ClawWin 已在运行中',
+    detail: '请关闭已运行的 ClawWin 后再启动。',
+    buttons: ['确定'],
+  })
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.show()
+      mainWindow.focus()
+    }
+  })
+}
+
 app.whenReady().then(async () => {
   setupIPC()
   initGatewayManager()

@@ -17,8 +17,8 @@ export interface ChannelPairingGroup {
   requests: PairingRequest[]
 }
 
-function getOauthDir(): string {
-  return path.join(os.homedir(), '.openclaw', 'oauth')
+function getCredentialsDir(): string {
+  return path.join(os.homedir(), '.openclaw', 'credentials')
 }
 
 function isExpired(entry: PairingRequest, nowMs: number): boolean {
@@ -29,7 +29,7 @@ function isExpired(entry: PairingRequest, nowMs: number): boolean {
 
 /** List all pending pairing requests across all channels */
 export function listAllChannelPairings(): ChannelPairingGroup[] {
-  const oauthDir = getOauthDir()
+  const oauthDir = getCredentialsDir()
   if (!fs.existsSync(oauthDir)) return []
 
   const files = fs.readdirSync(oauthDir).filter(f => f.endsWith('-pairing.json'))
@@ -56,7 +56,7 @@ export function listAllChannelPairings(): ChannelPairingGroup[] {
 
 /** Approve a pairing code: remove from pairing.json, add to allowFrom.json */
 export function approvePairingCode(channel: string, code: string): { id: string } | null {
-  const oauthDir = getOauthDir()
+  const oauthDir = getCredentialsDir()
   const pairingFile = path.join(oauthDir, `${channel}-pairing.json`)
 
   if (!fs.existsSync(pairingFile)) return null

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { CHANNELS, ChannelDef } from '../../lib/channel-defs'
 import type { ChannelPairingGroup } from '../../types'
 import type { GatewayClient } from '../../lib/gateway-protocol'
@@ -16,10 +16,19 @@ function timeAgo(isoStr: string): string {
   return `${Math.floor(ms / 3600000)} 小时前`
 }
 
+/** 复制文本到剪贴板 */
+async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text)
+    return true
+  } catch {
+    return false
+  }
+}
+
 export function ChannelSettings({ onClose, onSaved, gatewayClient }: ChannelSettingsProps) {
   const [configs, setConfigs] = useState<Record<string, Record<string, string>>>({})
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   // 当前打开配置对话框的渠道 ID
@@ -42,6 +51,10 @@ export function ChannelSettings({ onClose, onSaved, gatewayClient }: ChannelSett
   const [qrDataUrl, setQrDataUrl] = useState('')
   const [qrStatus, setQrStatus] = useState<'loading' | 'ready' | 'waiting' | 'success' | 'error'>('loading')
   const [qrMessage, setQrMessage] = useState('')
+
+  // 权限 JSON 展开/复制
+  const [showPermJson, setShowPermJson] = useState(false)
+  const [permCopied, setPermCopied] = useState(false)
 
   // 加载当前渠道配置
   useEffect(() => {
@@ -84,57 +97,57 @@ export function ChannelSettings({ onClose, onSaved, gatewayClient }: ChannelSett
 
   const isEnabled = (id: string) => id in configs
 
-  const handleCardClick = useCallback((ch: ChannelDef) => {
-    if (ch.disabled) return
-
-    if (isEnabled(ch.id)) {
-      // 已启用 → 关闭
-      setConfigs((prev) => {
-        const next = { ...prev }
-        delete next[ch.id]
-        return next
-      })
-    } else if (ch.fields.length > 0) {
-      // 有配置字段 → 打开对话框
-      setDialogFields(configs[ch.id] ?? {})
-      setEditingChannel(ch.id)
-    } else {
-      // 无配置字段 → 直接启用
-      setConfigs((prev) => ({ ...prev, [ch.id]: {} }))
-    }
-    // 清除之前的状态提示
-    setStatus(null)
-  }, [configs])
-
-  const handleDialogSave = useCallback(() => {
-    if (!editingChannel) return
-    setConfigs((prev) => ({ ...prev, [editingChannel]: { ...dialogFields } }))
-    setEditingChannel(null)
-    setDialogFields({})
-  }, [editingChannel, dialogFields])
-
-  const handleDialogCancel = useCallback(() => {
-    setEditingChannel(null)
-    setDialogFields({})
-  }, [])
-
-  const handleSave = useCallback(async () => {
-    setSaving(true)
+  const handleSave = useCallback(async (newConfigs: Record<string, Record<string, string>>) => {
     setStatus(null)
     try {
-      const result = await window.electronAPI.config.saveChannels(configs)
+      const result = await window.electronAPI.config.saveChannels(newConfigs)
       if (result.ok) {
-        setStatus({ type: 'success', message: '渠道配置已保存' })
+        setStatus({ type: 'success', message: '已保存' })
         onSaved()
       } else {
         setStatus({ type: 'error', message: result.error ?? '保存失败' })
       }
     } catch (err) {
       setStatus({ type: 'error', message: '保存渠道配置时出错' })
-    } finally {
-      setSaving(false)
     }
-  }, [configs, onSaved])
+  }, [onSaved])
+
+  const handleCardClick = useCallback((ch: ChannelDef) => {
+    if (ch.disabled) return
+
+    if (isEnabled(ch.id)) {
+      // 已启用 → 关闭并自动保存
+      const next = { ...configs }
+      delete next[ch.id]
+      setConfigs(next)
+      handleSave(next)
+    } else if (ch.fields.length > 0) {
+      // 有配置字段 → 打开对话框
+      setDialogFields(configs[ch.id] ?? {})
+      setEditingChannel(ch.id)
+    } else {
+      // 无配置字段 → 直接启用并自动保存
+      const next = { ...configs, [ch.id]: {} }
+      setConfigs(next)
+      handleSave(next)
+    }
+    // 清除之前的状态提示
+    setStatus(null)
+  }, [configs, handleSave])
+
+  const handleDialogSave = useCallback(() => {
+    if (!editingChannel) return
+    const next = { ...configs, [editingChannel]: { ...dialogFields } }
+    setConfigs(next)
+    setEditingChannel(null)
+    setDialogFields({})
+    handleSave(next)
+  }, [editingChannel, dialogFields, configs, handleSave])
+
+  const handleDialogCancel = useCallback(() => {
+    setEditingChannel(null)
+    setDialogFields({})
+  }, [])
 
   // 配对批准
   const handleApprove = useCallback(async (channel: string, code: string) => {
@@ -257,6 +270,82 @@ export function ChannelSettings({ onClose, onSaved, gatewayClient }: ChannelSett
         </div>
 
         <div className="settings-body">
+          {/* 配对管理 */}
+          {enabledChannelIds.length > 0 && (
+            <div className="pairing-section">
+              <div className="pairing-section-header">
+                <h3>配对管理</h3>
+                <button className="btn-secondary pairing-refresh-btn" onClick={loadPairings} disabled={pairingLoading}>
+                  {pairingLoading ? '刷新中...' : '刷新'}
+                </button>
+              </div>
+              <p className="settings-hint">在聊天工具中向机器人发送任意消息获取配对码，然后在此输入批准</p>
+
+              {/* 手动输入 */}
+              <div className="pairing-manual-row">
+                <select
+                  className="pairing-channel-select"
+                  value={manualChannel}
+                  onChange={(e) => setManualChannel(e.target.value)}
+                >
+                  {enabledChannelIds.map((ch) => (
+                    <option key={ch} value={ch}>{ch}</option>
+                  ))}
+                </select>
+                <input
+                  type="text"
+                  className="input-field pairing-code-input"
+                  placeholder="输入配对码"
+                  value={manualCode}
+                  maxLength={8}
+                  onChange={(e) => setManualCode(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleManualApprove() }}
+                />
+                <button
+                  className="btn-primary"
+                  disabled={!manualCode.trim() || !manualChannel || approving !== null}
+                  onClick={handleManualApprove}
+                >
+                  批准
+                </button>
+              </div>
+
+              {/* 状态提示 */}
+              {pairingStatus && (
+                <div className={`pairing-status ${pairingStatus.type}`}>
+                  {pairingStatus.message}
+                </div>
+              )}
+
+              {/* 待批准列表 */}
+              {totalPairingRequests > 0 && (
+                <div className="pairing-requests-list">
+                  {pairingGroups.map((group) => (
+                    <div key={group.channel} className="pairing-channel-group">
+                      <div className="pairing-channel-name">{group.channel}</div>
+                      {group.requests.map((req) => (
+                        <div key={`${group.channel}:${req.code}`} className="pairing-request-card">
+                          <div className="pairing-request-info">
+                            <span className="pairing-request-code">{req.code}</span>
+                            <span className="pairing-request-id">{req.id}</span>
+                            <span className="pairing-request-time">{timeAgo(req.createdAt)}</span>
+                          </div>
+                          <button
+                            className="btn-primary pairing-approve-btn"
+                            disabled={approving === `${group.channel}:${req.code}`}
+                            onClick={() => handleApprove(group.channel, req.code)}
+                          >
+                            {approving === `${group.channel}:${req.code}` ? '批准中...' : '批准'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="channel-grid">
             {CHANNELS.map((ch, idx) => {
               const active = isEnabled(ch.id)
@@ -341,94 +430,11 @@ export function ChannelSettings({ onClose, onSaved, gatewayClient }: ChannelSett
             })}
           </div>
 
-          <div className="channel-settings-save-row">
-            {status && (
+          {status && (
+            <div className="channel-settings-save-row">
               <span className={`channel-settings-status ${status.type}`}>
                 {status.message}
               </span>
-            )}
-            <button
-              className="btn-primary"
-              onClick={handleSave}
-              disabled={saving}
-            >
-              {saving ? '保存中...' : '保存'}
-            </button>
-          </div>
-
-          {/* 配对管理 */}
-          {enabledChannelIds.length > 0 && (
-            <div className="pairing-section">
-              <div className="pairing-section-header">
-                <h3>配对管理</h3>
-                <button className="btn-secondary pairing-refresh-btn" onClick={loadPairings} disabled={pairingLoading}>
-                  {pairingLoading ? '刷新中...' : '刷新'}
-                </button>
-              </div>
-              <p className="settings-hint">在聊天工具中发送 /pair 获取配对码，然后在此输入批准</p>
-
-              {/* 手动输入 */}
-              <div className="pairing-manual-row">
-                <select
-                  className="pairing-channel-select"
-                  value={manualChannel}
-                  onChange={(e) => setManualChannel(e.target.value)}
-                >
-                  {enabledChannelIds.map((ch) => (
-                    <option key={ch} value={ch}>{ch}</option>
-                  ))}
-                </select>
-                <input
-                  type="text"
-                  className="input-field pairing-code-input"
-                  placeholder="输入配对码"
-                  value={manualCode}
-                  maxLength={8}
-                  onChange={(e) => setManualCode(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleManualApprove() }}
-                />
-                <button
-                  className="btn-primary"
-                  disabled={!manualCode.trim() || !manualChannel || approving !== null}
-                  onClick={handleManualApprove}
-                >
-                  批准
-                </button>
-              </div>
-
-              {/* 状态提示 */}
-              {pairingStatus && (
-                <div className={`pairing-status ${pairingStatus.type}`}>
-                  {pairingStatus.message}
-                </div>
-              )}
-
-              {/* 待批准列表 */}
-              {totalPairingRequests > 0 && (
-                <div className="pairing-requests-list">
-                  {pairingGroups.map((group) => (
-                    <div key={group.channel} className="pairing-channel-group">
-                      <div className="pairing-channel-name">{group.channel}</div>
-                      {group.requests.map((req) => (
-                        <div key={`${group.channel}:${req.code}`} className="pairing-request-card">
-                          <div className="pairing-request-info">
-                            <span className="pairing-request-code">{req.code}</span>
-                            <span className="pairing-request-id">{req.id}</span>
-                            <span className="pairing-request-time">{timeAgo(req.createdAt)}</span>
-                          </div>
-                          <button
-                            className="btn-primary pairing-approve-btn"
-                            disabled={approving === `${group.channel}:${req.code}`}
-                            onClick={() => handleApprove(group.channel, req.code)}
-                          >
-                            {approving === `${group.channel}:${req.code}` ? '批准中...' : '批准'}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           )}
 
@@ -477,7 +483,7 @@ export function ChannelSettings({ onClose, onSaved, gatewayClient }: ChannelSett
           )}
           {/* 教程弹窗 */}
           {tutorialChannel && tutorialChannel.tutorialSteps && (
-            <div className="channel-dialog-overlay" onClick={() => setTutorialChannel(null)}>
+            <div className="channel-dialog-overlay" onClick={() => { setTutorialChannel(null); setShowPermJson(false); setPermCopied(false) }}>
               <div className="channel-dialog channel-tutorial-dialog" onClick={(e) => e.stopPropagation()}>
                 <div className="channel-dialog-header">
                   <span className="channel-icon"><tutorialChannel.logo /></span>
@@ -485,14 +491,46 @@ export function ChannelSettings({ onClose, onSaved, gatewayClient }: ChannelSett
                 </div>
                 <div className="channel-tutorial-steps">
                   {tutorialChannel.tutorialSteps.map((step, i) => (
-                    <div key={i} className="channel-tutorial-step">
-                      <span className="channel-tutorial-step-num">{i + 1}</span>
-                      <span className="channel-tutorial-step-text">{step}</span>
-                    </div>
+                    <React.Fragment key={i}>
+                      <div className="channel-tutorial-step">
+                        <span className="channel-tutorial-step-num">{i + 1}</span>
+                        <span className="channel-tutorial-step-text">{step}</span>
+                      </div>
+                      {i === 3 && tutorialChannel.permissionsJson && (
+                        <div className="channel-permissions-section">
+                          <button
+                            className={`btn-secondary channel-permissions-toggle${showPermJson ? ' active' : ''}`}
+                            onClick={() => { setShowPermJson(!showPermJson); setPermCopied(false) }}
+                          >
+                            {showPermJson ? '收起权限配置' : '查看权限配置 JSON'}
+                          </button>
+                          {showPermJson && (
+                            <div className="channel-permissions-content">
+                              <div className="channel-permissions-toolbar">
+                                <span className="channel-permissions-hint">复制以下 JSON，在飞书开发者后台「权限管理 → 批量导入」中粘贴</span>
+                                <button
+                                  className="btn-primary channel-permissions-copy-btn"
+                                  onClick={async () => {
+                                    const ok = await copyToClipboard(tutorialChannel.permissionsJson!)
+                                    if (ok) {
+                                      setPermCopied(true)
+                                      setTimeout(() => setPermCopied(false), 2000)
+                                    }
+                                  }}
+                                >
+                                  {permCopied ? '已复制' : '复制'}
+                                </button>
+                              </div>
+                              <pre className="channel-permissions-json">{tutorialChannel.permissionsJson}</pre>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </React.Fragment>
                   ))}
                 </div>
                 <div className="channel-dialog-actions">
-                  <button className="btn-primary" onClick={() => setTutorialChannel(null)}>知道了</button>
+                  <button className="btn-primary" onClick={() => { setTutorialChannel(null); setShowPermJson(false); setPermCopied(false) }}>知道了</button>
                 </div>
               </div>
             </div>
