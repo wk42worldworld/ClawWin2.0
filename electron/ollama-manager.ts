@@ -258,6 +258,7 @@ export class OllamaManager {
   private modelsDir: string
   private process: ChildProcess | null = null
   private downloadAbort: AbortController | null = null
+  private pullRequest: http.ClientRequest | null = null
   private mainWindow: BrowserWindow | null = null
 
   // 下载地址列表（按优先级尝试，中国大陆可访问）
@@ -267,11 +268,30 @@ export class OllamaManager {
     'https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip',  // GitHub 原始地址（备选）
   ]
 
-  constructor() {
-    const openclawHome = path.join(os.homedir(), '.openclaw')
-    this.ollamaDir = path.join(openclawHome, 'ollama')
+  constructor(ollamaBaseDir?: string) {
+    const baseDir = ollamaBaseDir ?? path.join(os.homedir(), '.openclaw')
+    this.ollamaDir = path.join(baseDir, 'ollama')
     this.ollamaExe = path.join(this.ollamaDir, 'ollama.exe')
     this.modelsDir = path.join(this.ollamaDir, 'models')
+
+    // 从 clawwin-ui.json 读取已保存的自定义存储目录
+    try {
+      const uiConfigPath = path.join(os.homedir(), '.openclaw', 'clawwin-ui.json')
+      if (fs.existsSync(uiConfigPath)) {
+        const uiConfig = JSON.parse(fs.readFileSync(uiConfigPath, 'utf-8'))
+        if (uiConfig.ollamaModelsDir && typeof uiConfig.ollamaModelsDir === 'string') {
+          this.modelsDir = uiConfig.ollamaModelsDir
+        }
+      }
+    } catch { /* ignore config read errors */ }
+  }
+
+  getModelsDir(): string {
+    return this.modelsDir
+  }
+
+  setModelsDir(dir: string): void {
+    this.modelsDir = dir
   }
 
   setMainWindow(win: BrowserWindow | null) {
@@ -420,90 +440,128 @@ export class OllamaManager {
   }
 
   async downloadModel(modelId: string): Promise<void> {
-    const modelDef = LOCAL_MODELS.find(m => m.id === modelId)
-    if (!modelDef) throw new Error(`未知模型: ${modelId}`)
-
     // Ensure ollama is running
     const status = await this.getStatus()
     if (!status.running) {
       await this.start()
     }
 
-    // Determine files to download
-    fs.mkdirSync(this.modelsDir, { recursive: true })
-    const subfolder = modelDef.ggufSubfolder ? `${modelDef.ggufSubfolder}/` : ''
-    let filesToDownload: string[]
-
-    if (modelDef.ggufFileParts && modelDef.ggufFilePattern) {
-      // Multi-file split model
-      filesToDownload = []
-      for (let i = 1; i <= modelDef.ggufFileParts; i++) {
-        const part = String(i).padStart(5, '0')
-        const total = String(modelDef.ggufFileParts).padStart(5, '0')
-        filesToDownload.push(`${modelDef.ggufFilePattern}-${part}-of-${total}.gguf`)
-      }
-    } else {
-      filesToDownload = [modelDef.ggufFile]
-    }
-
-    const totalFiles = filesToDownload.length
-    const downloadedPaths: string[] = []
-
     this.sendProgress({ id: modelId, status: 'downloading', progress: 0 })
 
-    for (let i = 0; i < totalFiles; i++) {
-      const file = filesToDownload[i]
-      const ggufPath = path.join(this.modelsDir, file)
-      const ggufUrl = `https://hf-mirror.com/${modelDef.ggufRepo}/resolve/main/${subfolder}${file}`
+    // 使用 Ollama 原生 Pull API 下载模型（从 Ollama CDN 直接拉取，无需 HuggingFace 镜像）
+    return new Promise<void>((resolve, reject) => {
+      let resolved = false
+      const postData = JSON.stringify({ name: modelId })
+      const req = http.request({
+        hostname: '127.0.0.1',
+        port: 11434,
+        path: '/api/pull',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(postData),
+        },
+      }, (res) => {
+        if (res.statusCode && res.statusCode >= 400) {
+          let body = ''
+          res.on('data', (chunk) => { body += chunk })
+          res.on('end', () => {
+            const msg = body || `HTTP ${res.statusCode}`
+            this.sendProgress({ id: modelId, status: 'error', error: msg })
+            reject(new Error(msg))
+          })
+          return
+        }
 
-      await this.downloadFile(ggufUrl, ggufPath, (progress, downloaded, total) => {
-        // Calculate overall progress across all files
-        const overallProgress = Math.round(((i * 100) + progress) / totalFiles)
-        this.sendProgress({
-          id: modelId,
-          status: 'downloading',
-          progress: overallProgress,
-          downloadedBytes: downloaded,
-          totalBytes: total,
-          currentFile: totalFiles > 1 ? i + 1 : undefined,
-          totalFileCount: totalFiles > 1 ? totalFiles : undefined,
+        let buffer = ''
+        res.on('data', (chunk: Buffer) => {
+          if (resolved) return
+          buffer += chunk.toString()
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || ''
+          for (const line of lines) {
+            if (!line.trim() || resolved) continue
+            try {
+              const data = JSON.parse(line)
+              if (data.status === 'success') {
+                resolved = true
+                this.sendProgress({ id: modelId, status: 'ready', progress: 100 })
+                resolve()
+                return
+              }
+              if (data.error) {
+                resolved = true
+                this.sendProgress({ id: modelId, status: 'error', error: data.error })
+                reject(new Error(data.error))
+                return
+              }
+              if (data.total && data.completed !== undefined) {
+                const progress = Math.round((data.completed / data.total) * 100)
+                this.sendProgress({
+                  id: modelId,
+                  status: 'downloading',
+                  progress,
+                  downloadedBytes: data.completed,
+                  totalBytes: data.total,
+                })
+              }
+            } catch { /* ignore partial JSON */ }
+          }
+        })
+
+        res.on('end', () => {
+          if (resolved) return
+          // Process remaining buffer
+          if (buffer.trim()) {
+            try {
+              const data = JSON.parse(buffer)
+              if (data.status === 'success') {
+                resolved = true
+                this.sendProgress({ id: modelId, status: 'ready', progress: 100 })
+                resolve()
+                return
+              }
+              if (data.error) {
+                resolved = true
+                reject(new Error(data.error))
+                return
+              }
+            } catch { /* ignore */ }
+          }
+          if (!resolved) {
+            resolved = true
+            this.sendProgress({ id: modelId, status: 'ready', progress: 100 })
+            resolve()
+          }
+        })
+
+        res.on('error', (err) => {
+          if (!resolved) {
+            resolved = true
+            reject(err)
+          }
         })
       })
 
-      downloadedPaths.push(ggufPath)
-    }
-
-    // Import into Ollama using Modelfile (points to first file; Ollama auto-discovers split parts)
-    this.sendProgress({ id: modelId, status: 'importing', progress: 100 })
-
-    const modelfilePath = path.join(this.modelsDir, `Modelfile-${modelId.replace(/[:/]/g, '-')}`)
-    const modelfileContent = `FROM ${downloadedPaths[0]}\n`
-    fs.writeFileSync(modelfilePath, modelfileContent, 'utf-8')
-
-    await new Promise<void>((resolve, reject) => {
-      const env = { ...process.env, OLLAMA_MODELS: this.modelsDir }
-      execFile(this.ollamaExe, ['create', modelId, '-f', modelfilePath], { env, timeout: 600000 }, (err, stdout, stderr) => {
-        // Clean up modelfile
-        try { fs.unlinkSync(modelfilePath) } catch { /* ignore */ }
-        if (err) {
-          this.sendProgress({ id: modelId, status: 'error', error: stderr || err.message })
-          reject(new Error(stderr || err.message))
-        } else {
-          this.sendProgress({ id: modelId, status: 'ready', progress: 100 })
-          resolve()
+      this.pullRequest = req
+      req.on('error', (err) => {
+        if (!resolved) {
+          resolved = true
+          this.sendProgress({ id: modelId, status: 'error', error: err.message })
+          reject(err)
         }
       })
+      req.write(postData)
+      req.end()
+    }).finally(() => {
+      this.pullRequest = null
     })
-
-    // Clean up all GGUF files (Ollama has its own copy now)
-    for (const p of downloadedPaths) {
-      try { fs.unlinkSync(p) } catch { /* ignore */ }
-    }
   }
 
   async deleteModel(modelId: string): Promise<void> {
     try {
-      await this.httpRequest('http://127.0.0.1:11434/api/delete', 'DELETE', JSON.stringify({ name: modelId }))
+      // Ollama API 同时接受 name 和 model 字段，发送两个确保兼容
+      await this.httpRequest('http://127.0.0.1:11434/api/delete', 'DELETE', JSON.stringify({ name: modelId, model: modelId }))
     } catch (err) {
       throw new Error(`删除模型失败: ${err instanceof Error ? err.message : String(err)}`)
     }
@@ -560,6 +618,12 @@ export class OllamaManager {
     if (!config.meta) config.meta = {}
     config.meta.lastTouchedAt = now
 
+    // 使用本地模型时，禁用需要云端 API Key 的内置功能（session-memory 需要 Voyage 嵌入 API）
+    if (!config.hooks) config.hooks = {}
+    if (!config.hooks.internal) config.hooks.internal = { enabled: true, entries: {} }
+    if (!config.hooks.internal.entries) config.hooks.internal.entries = {}
+    config.hooks.internal.entries['session-memory'] = { enabled: false }
+
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8')
 
     // Write auth-profiles.json with dummy key for ollama
@@ -585,6 +649,10 @@ export class OllamaManager {
   }
 
   cancelDownload(): void {
+    if (this.pullRequest) {
+      this.pullRequest.destroy()
+      this.pullRequest = null
+    }
     if (this.downloadAbort) {
       this.downloadAbort.abort()
       this.downloadAbort = null
@@ -690,14 +758,10 @@ export class OllamaManager {
 
           res.on('end', () => {
             file.end(() => {
-              // Rename to final path
-              try {
-                if (fs.existsSync(dest)) fs.unlinkSync(dest)
-                fs.renameSync(partialPath, dest)
-                resolve()
-              } catch (err) {
-                reject(err)
-              }
+              // Rename to final path (with retry for Windows EPERM from antivirus file locks)
+              this.renameWithRetry(partialPath, dest)
+                .then(() => resolve())
+                .catch((err) => reject(err))
             })
           })
 
@@ -732,23 +796,63 @@ export class OllamaManager {
     return new Promise((resolve, reject) => {
       const parsed = new URL(url)
       const mod = parsed.protocol === 'https:' ? https : http
+      const bodyBuf = Buffer.from(body, 'utf-8')
       const req = mod.request({
         hostname: parsed.hostname,
         port: parsed.port,
         path: parsed.pathname,
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': bodyBuf.length,
+        },
         timeout: 5000,
       }, (res) => {
         let data = ''
         res.on('data', (chunk) => { data += chunk })
-        res.on('end', () => resolve(data))
+        res.on('end', () => {
+          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+            resolve(data)
+          } else {
+            reject(new Error(data || `HTTP ${res.statusCode}`))
+          }
+        })
         res.on('error', reject)
       })
       req.on('error', reject)
-      req.write(body)
+      req.write(bodyBuf)
       req.end()
     })
+  }
+
+  /**
+   * Rename file with retry mechanism for Windows EPERM errors (antivirus file locks).
+   * Tries renameSync up to 3 times with 500ms delay, then falls back to copyFileSync + unlinkSync.
+   */
+  private async renameWithRetry(src: string, dest: string, retries = 3, delayMs = 500): Promise<void> {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        if (fs.existsSync(dest)) fs.unlinkSync(dest)
+        fs.renameSync(src, dest)
+        return
+      } catch (err: unknown) {
+        const isEPERM = err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'EPERM'
+        if (!isEPERM || attempt === retries) {
+          // Not an EPERM error, or final retry exhausted — try copy fallback
+          break
+        }
+        await this.sleep(delayMs)
+      }
+    }
+
+    // Fallback: copy then delete source
+    try {
+      if (fs.existsSync(dest)) fs.unlinkSync(dest)
+      fs.copyFileSync(src, dest)
+      try { fs.unlinkSync(src) } catch { /* ignore cleanup failure */ }
+    } catch (err) {
+      throw new Error(`文件重命名失败: ${err instanceof Error ? err.message : String(err)}`)
+    }
   }
 
   private sleep(ms: number): Promise<void> {

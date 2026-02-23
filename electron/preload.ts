@@ -175,6 +175,8 @@ const electronAPI = {
     getHardwareInfo: (): Promise<{ totalMemory: number; freeMemory: number; gpuName?: string; gpuMemory?: number }> =>
       ipcRenderer.invoke('ollama:getHardware'),
     cancelDownload: (): Promise<void> => ipcRenderer.invoke('ollama:cancelDownload'),
+    getModelsDir: (): Promise<string> => ipcRenderer.invoke('ollama:getModelsDir'),
+    setModelsDir: (dir: string): Promise<void> => ipcRenderer.invoke('ollama:setModelsDir', dir),
     onProgress: (callback: (state: { id: string; status: string; progress?: number; downloadedBytes?: number; totalBytes?: number; error?: string }) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, state: { id: string; status: string; progress?: number; downloadedBytes?: number; totalBytes?: number; error?: string }) => callback(state)
       ipcRenderer.on('ollama:progress', handler)

@@ -341,14 +341,16 @@ function App() {
     }
   }, [setup, gateway])
 
-  // 网关开始加载时激活视频启动屏
+  // 网关启动/重启时激活视频启动屏
   useEffect(() => {
-    if (!splashActive && !splashDismissed && !showSetup && !setup.isLoading
-      && (gateway.state === 'starting' || gateway.state === 'restarting' || gateway.state === 'error')) {
-      setSplashActive(true)
-      splashActivatedAt.current = Date.now()
+    if (gateway.state === 'starting' || gateway.state === 'restarting' || gateway.state === 'error') {
+      if (!splashActive && !showSetup && !setup.isLoading) {
+        setSplashDismissed(false)
+        setSplashActive(true)
+        splashActivatedAt.current = Date.now()
+      }
     }
-  }, [gateway.state, splashActive, splashDismissed, showSetup, setup.isLoading])
+  }, [gateway.state, splashActive, showSetup, setup.isLoading])
 
   // 网关就绪后：保证至少播放2秒，再触发退场动画
   useEffect(() => {
@@ -359,6 +361,7 @@ function App() {
         setShowSplashExit(true)
         setTimeout(() => {
           setSplashDismissed(true)
+          setSplashActive(false)
           setShowSplashExit(false)
         }, 700)
       }, delay)

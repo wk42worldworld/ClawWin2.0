@@ -5,7 +5,7 @@ interface LocalModelSettingsProps {
   onSaved: () => void
 }
 
-// 预置推荐模型列表（按推荐度排序，最新最强在前）
+// 预置推荐模型列表（所有模型均支持工具调用 Tool Calling）
 const RECOMMENDED_MODELS = [
   // ===== 推荐首选（8GB 内存） =====
   {
@@ -19,26 +19,26 @@ const RECOMMENDED_MODELS = [
     tags: ['推荐', '中文强', '推理'],
   },
   {
-    id: 'glm-z1:9b',
-    name: 'GLM-Z1 9B',
-    description: '智谱深度推理模型，数学能力极强，中文优秀',
-    size: '6.2GB',
-    sizeBytes: 6_656_000_000,
+    id: 'qwen3-vl:8b',
+    name: 'Qwen3-VL 8B',
+    description: '最强视觉语言模型，图片/视频理解+工具调用+Agent',
+    size: '5.5GB',
+    sizeBytes: 5_900_000_000,
     minMemory: '8GB',
     minMemoryBytes: 8_589_934_592,
-    tags: ['推理', '中文强'],
+    tags: ['推荐', '多模态', '中文强'],
   },
   {
-    id: 'deepseek-r1:7b',
-    name: 'DeepSeek-R1 7B',
-    description: '深度推理蒸馏版，数学/代码/逻辑推理强',
+    id: 'qwen2.5vl:7b',
+    name: 'Qwen2.5-VL 7B',
+    description: '通义千问视觉语言模型，支持图片理解和动态工具调用',
     size: '4.7GB',
     sizeBytes: 5_046_000_000,
     minMemory: '8GB',
     minMemoryBytes: 8_589_934_592,
-    tags: ['推理'],
+    tags: ['多模态', '中文强'],
   },
-  // ===== 进阶选择（16GB 内存） =====
+  // ===== 进阶选择（10-16GB 内存） =====
   {
     id: 'qwen3:14b',
     name: 'Qwen3 14B',
@@ -50,24 +50,24 @@ const RECOMMENDED_MODELS = [
     tags: ['推荐', '中文强', '推理'],
   },
   {
-    id: 'deepseek-r1:14b',
-    name: 'DeepSeek-R1 14B',
-    description: '更强推理蒸馏版，复杂任务首选',
-    size: '9.0GB',
-    sizeBytes: 9_660_000_000,
-    minMemory: '16GB',
-    minMemoryBytes: 17_179_869_184,
-    tags: ['推理'],
-  },
-  {
     id: 'gemma3:12b',
     name: 'Gemma 3 12B',
-    description: 'Google 最新开源模型，128K 上下文，多语言',
+    description: 'Google 最新开源模型，支持图片理解，128K 上下文',
     size: '7.3GB',
     sizeBytes: 7_840_000_000,
     minMemory: '10GB',
     minMemoryBytes: 10_737_418_240,
-    tags: ['多语言'],
+    tags: ['多模态', '多语言'],
+  },
+  {
+    id: 'mistral-small3.1:24b',
+    name: 'Mistral Small 3.1',
+    description: 'Mistral 最新视觉模型，超越 GPT-4o Mini，128K 上下文',
+    size: '14.0GB',
+    sizeBytes: 15_032_000_000,
+    minMemory: '16GB',
+    minMemoryBytes: 17_179_869_184,
+    tags: ['多模态', '多语言'],
   },
   // ===== 高配选择（24GB+ 内存） =====
   {
@@ -100,17 +100,17 @@ const RECOMMENDED_MODELS = [
     minMemoryBytes: 25_769_803_776,
     tags: ['高配', 'MoE', '推理', '中文强'],
   },
+  // ===== 专业级（48-80GB 内存） =====
   {
-    id: 'deepseek-r1:32b',
-    name: 'DeepSeek-R1 32B',
-    description: '最强推理蒸馏版，接近 GPT-4o 推理水平',
-    size: '19.9GB',
-    sizeBytes: 21_370_000_000,
-    minMemory: '24GB',
-    minMemoryBytes: 25_769_803_776,
-    tags: ['高配', '推理'],
+    id: 'qwen3-vl:72b',
+    name: 'Qwen3-VL 72B',
+    description: '旗舰级视觉语言模型，全球顶尖多模态理解+Agent能力',
+    size: '43.0GB',
+    sizeBytes: 46_170_000_000,
+    minMemory: '48GB',
+    minMemoryBytes: 51_539_607_552,
+    tags: ['专业级', '多模态', '中文强'],
   },
-  // ===== 专业级（48-64GB 内存） =====
   {
     id: 'llama3.3:70b',
     name: 'Llama 3.3 70B',
@@ -124,12 +124,12 @@ const RECOMMENDED_MODELS = [
   {
     id: 'llama4-scout:109b',
     name: 'Llama 4 Scout 109B',
-    description: 'Meta 最新 MoE 模型，10M 上下文，多模态',
+    description: 'Meta 最新 MoE 模型，10M 上下文，原生多模态',
     size: '65.4GB',
     sizeBytes: 70_214_000_000,
     minMemory: '80GB',
     minMemoryBytes: 85_899_345_920,
-    tags: ['专业级', 'MoE'],
+    tags: ['专业级', 'MoE', '多模态'],
   },
   // ===== 旗舰级（128GB+ 内存） =====
   {
@@ -153,16 +153,6 @@ const RECOMMENDED_MODELS = [
     tags: ['旗舰', 'MoE', '推理', '中文强'],
   },
   {
-    id: 'deepseek-r1:671b',
-    name: 'DeepSeek-R1 671B',
-    description: 'DeepSeek 满血版，最强开源推理模型',
-    size: '404GB',
-    sizeBytes: 433_800_000_000,
-    minMemory: '512GB',
-    minMemoryBytes: 549_755_813_888,
-    tags: ['旗舰', 'MoE', '推理'],
-  },
-  {
     id: 'glm-5:744b',
     name: 'GLM-5 744B',
     description: '智谱最新旗舰，744B MoE，开源最强之一',
@@ -182,17 +172,6 @@ const RECOMMENDED_MODELS = [
     minMemoryBytes: 824_633_720_832,
     tags: ['旗舰', 'MoE', '中文强'],
   },
-  // ===== 轻量选择（4GB 内存） =====
-  {
-    id: 'qwen2.5:3b',
-    name: 'Qwen2.5 3B',
-    description: '超轻量通义千问，4GB 内存即可运行',
-    size: '2.0GB',
-    sizeBytes: 2_150_000_000,
-    minMemory: '4GB',
-    minMemoryBytes: 4_294_967_296,
-    tags: ['轻量'],
-  },
 ]
 
 function formatBytes(bytes: number): string {
@@ -211,6 +190,10 @@ export const LocalModelSettings: React.FC<LocalModelSettingsProps> = ({ onSaved 
   const [starting, setStarting] = useState(false)
   const [applyingModel, setApplyingModel] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [modelsDir, setModelsDir] = useState<string>('')
+  const [changingDir, setChangingDir] = useState(false)
+  const [activeModel, setActiveModel] = useState<string>('')
+  const [stopping, setStopping] = useState(false)
   const unsubProgressRef = useRef<(() => void) | null>(null)
   const unsubStatusRef = useRef<(() => void) | null>(null)
 
@@ -246,6 +229,16 @@ export const LocalModelSettings: React.FC<LocalModelSettingsProps> = ({ onSaved 
   useEffect(() => {
     refreshStatus()
     refreshHardware()
+    refreshActiveModel()
+    window.electronAPI.ollama.getModelsDir().then(setModelsDir).catch(() => {})
+  }, [])
+
+  const refreshActiveModel = useCallback(async () => {
+    try {
+      const config = await window.electronAPI.config.readConfig()
+      const primary = (config as Record<string, unknown> & { agents?: { defaults?: { model?: { primary?: string } } } })?.agents?.defaults?.model?.primary ?? ''
+      setActiveModel(primary)
+    } catch { /* ignore */ }
   }, [])
 
   const refreshStatus = useCallback(async () => {
@@ -297,6 +290,20 @@ export const LocalModelSettings: React.FC<LocalModelSettingsProps> = ({ onSaved 
     }
   }, [refreshStatus, refreshModels])
 
+  const handleStopOllama = useCallback(async () => {
+    setStopping(true)
+    setError(null)
+    try {
+      await window.electronAPI.ollama.stop()
+      await refreshStatus()
+      setInstalledModels([])
+    } catch (err) {
+      setError(`停止失败: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setStopping(false)
+    }
+  }, [refreshStatus])
+
   const handleDownload = useCallback(async (modelId: string) => {
     setError(null)
     setDownloadState({ id: modelId, status: 'downloading', progress: 0 })
@@ -328,6 +335,7 @@ export const LocalModelSettings: React.FC<LocalModelSettingsProps> = ({ onSaved 
     setApplyingModel(modelId)
     try {
       await window.electronAPI.ollama.applyModel(modelId)
+      setActiveModel(`ollama/${modelId}`)
       onSaved()
     } catch (err) {
       setError(`配置失败: ${err instanceof Error ? err.message : String(err)}`)
@@ -336,8 +344,31 @@ export const LocalModelSettings: React.FC<LocalModelSettingsProps> = ({ onSaved 
     }
   }, [onSaved])
 
+  const handleChangeModelsDir = useCallback(async () => {
+    setError(null)
+    try {
+      const selected = await window.electronAPI.dialog.selectFolder(modelsDir || undefined)
+      if (!selected) return
+      setChangingDir(true)
+      await window.electronAPI.ollama.setModelsDir(selected)
+      setModelsDir(selected)
+      await refreshStatus()
+      await refreshModels()
+    } catch (err) {
+      setError(`更改目录失败: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setChangingDir(false)
+    }
+  }, [modelsDir, refreshStatus, refreshModels])
+
   const isModelInstalled = (modelId: string) => {
-    return installedModels.some(m => m === modelId || m.startsWith(modelId.split(':')[0]))
+    return installedModels.some(m => m === modelId || m === `${modelId}:latest`)
+  }
+
+  const isActiveModel = (modelId: string) => {
+    // activeModel format: "ollama/qwen3:8b", modelId could be "qwen3:8b" or "qwen3:8b:latest"
+    const normalized = modelId.replace(/:latest$/, '')
+    return activeModel === `ollama/${normalized}` || activeModel === `ollama/${modelId}`
   }
 
   const isDownloading = downloadState && (downloadState.status === 'downloading' || downloadState.status === 'importing')
@@ -364,9 +395,14 @@ export const LocalModelSettings: React.FC<LocalModelSettingsProps> = ({ onSaved 
             </button>
           )}
           {ollamaStatus.running && (
-            <button className="btn-secondary" style={{ fontSize: '12px', padding: '4px 12px' }} onClick={refreshStatus}>
-              刷新
-            </button>
+            <>
+              <button className="btn-secondary" style={{ fontSize: '12px', padding: '4px 12px' }} onClick={refreshStatus}>
+                刷新
+              </button>
+              <button className="btn-secondary" style={{ fontSize: '12px', padding: '4px 12px', color: 'var(--error)' }} onClick={handleStopOllama} disabled={stopping}>
+                {stopping ? '停止中...' : '停止'}
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -377,6 +413,22 @@ export const LocalModelSettings: React.FC<LocalModelSettingsProps> = ({ onSaved 
           内存: {formatBytes(hardware.totalMemory)} (可用 {formatBytes(hardware.freeMemory)})
           {hardware.gpuName && ` | GPU: ${hardware.gpuName}`}
           {hardware.gpuMemory && ` (${formatBytes(hardware.gpuMemory)})`}
+        </div>
+      )}
+
+      {/* Storage Directory */}
+      {modelsDir && (
+        <div className="local-model-storage-dir">
+          <span className="local-model-storage-label">存储目录:</span>
+          <code className="local-model-storage-path" title={modelsDir}>{modelsDir}</code>
+          <button
+            className="btn-secondary"
+            style={{ fontSize: '12px', padding: '4px 12px', marginLeft: '8px', whiteSpace: 'nowrap' }}
+            onClick={handleChangeModelsDir}
+            disabled={changingDir}
+          >
+            {changingDir ? '切换中...' : '更改目录'}
+          </button>
         </div>
       )}
 
@@ -409,22 +461,28 @@ export const LocalModelSettings: React.FC<LocalModelSettingsProps> = ({ onSaved 
         <div className="local-model-section">
           <div className="local-model-section-title">已下载模型</div>
           {installedModels.map((modelName) => {
-            const def = RECOMMENDED_MODELS.find(m => modelName === m.id || modelName.startsWith(m.id.split(':')[0]))
+            const def = RECOMMENDED_MODELS.find(m => modelName === m.id || modelName === `${m.id}:latest`)
+            const active = isActiveModel(modelName)
             return (
-              <div key={modelName} className="local-model-card installed">
+              <div key={modelName} className={`local-model-card installed${active ? ' active' : ''}`}>
                 <div className="local-model-card-info">
-                  <div className="local-model-card-name">{def?.name ?? modelName}</div>
+                  <div className="local-model-card-header">
+                    <span className="local-model-card-name">{def?.name ?? modelName}</span>
+                    {active && <span className="local-model-active-badge">使用中</span>}
+                  </div>
                   <div className="local-model-card-desc">{def?.description ?? '自定义模型'}</div>
                 </div>
                 <div className="local-model-card-actions">
-                  <button
-                    className="btn-primary"
-                    style={{ fontSize: '12px', padding: '6px 16px' }}
-                    onClick={() => handleApply(modelName)}
-                    disabled={applyingModel === modelName}
-                  >
-                    {applyingModel === modelName ? '配置中...' : '使用此模型'}
-                  </button>
+                  {!active && (
+                    <button
+                      className="btn-primary"
+                      style={{ fontSize: '12px', padding: '6px 16px' }}
+                      onClick={() => handleApply(modelName)}
+                      disabled={applyingModel === modelName}
+                    >
+                      {applyingModel === modelName ? '配置中...' : '使用此模型'}
+                    </button>
+                  )}
                   <button
                     className="btn-secondary"
                     style={{ fontSize: '12px', padding: '6px 12px' }}
@@ -444,15 +502,17 @@ export const LocalModelSettings: React.FC<LocalModelSettingsProps> = ({ onSaved 
         <div className="local-model-section-title">推荐模型</div>
         {RECOMMENDED_MODELS.map((model) => {
           const installed = isModelInstalled(model.id)
+          const active = isActiveModel(model.id)
           const isCurrentDownload = downloadState?.id === model.id && isDownloading
           const memoryOk = hardware ? hardware.totalMemory >= model.minMemoryBytes : true
 
           return (
-            <div key={model.id} className={`local-model-card${installed ? ' installed' : ''}${!memoryOk ? ' warn' : ''}`}>
+            <div key={model.id} className={`local-model-card${installed ? ' installed' : ''}${active ? ' active' : ''}${!memoryOk ? ' warn' : ''}`}>
               <div className="local-model-card-info">
                 <div className="local-model-card-header">
                   <span className="local-model-card-name">{model.name}</span>
                   <div className="local-model-card-tags">
+                    {active && <span className="local-model-active-badge">使用中</span>}
                     {model.tags.map((tag) => (
                       <span key={tag} className="local-model-tag">{tag}</span>
                     ))}
@@ -467,14 +527,16 @@ export const LocalModelSettings: React.FC<LocalModelSettingsProps> = ({ onSaved 
               </div>
               <div className="local-model-card-actions">
                 {installed ? (
-                  <button
-                    className="btn-primary"
-                    style={{ fontSize: '12px', padding: '6px 16px' }}
-                    onClick={() => handleApply(model.id)}
-                    disabled={applyingModel === model.id}
-                  >
-                    {applyingModel === model.id ? '配置中...' : '使用此模型'}
-                  </button>
+                  active ? null : (
+                    <button
+                      className="btn-primary"
+                      style={{ fontSize: '12px', padding: '6px 16px' }}
+                      onClick={() => handleApply(model.id)}
+                      disabled={applyingModel === model.id}
+                    >
+                      {applyingModel === model.id ? '配置中...' : '使用此模型'}
+                    </button>
+                  )
                 ) : isCurrentDownload ? (
                   <span style={{ fontSize: '12px', color: 'var(--accent)' }}>下载中...</span>
                 ) : (

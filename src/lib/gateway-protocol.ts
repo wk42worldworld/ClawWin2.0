@@ -80,8 +80,18 @@ export class GatewayClient {
   private _handshakeCompleted = false
   // 握手完成前缓冲的请求
   private _pendingQueue: Array<{ method: string; params?: unknown; resolve: (v: unknown) => void; reject: (e: unknown) => void }> = []
+  // 额外的事件监听器（供 useCron 等外部 hook 订阅）
+  private _eventListeners = new Set<(evt: GatewayEventFrame) => void>()
 
   constructor(private opts: GatewayClientOptions) {}
+
+  addEventListener(fn: (evt: GatewayEventFrame) => void) {
+    this._eventListeners.add(fn)
+  }
+
+  removeEventListener(fn: (evt: GatewayEventFrame) => void) {
+    this._eventListeners.delete(fn)
+  }
 
   get connected(): boolean {
     return this.ws?.readyState === WebSocket.OPEN && this._handshakeCompleted
@@ -294,6 +304,10 @@ export class GatewayClient {
         this.opts.onEvent?.(evt)
       } catch (err) {
         console.error('[gateway] event handler error:', err)
+      }
+      // 转发给额外监听器（useCron 等）
+      for (const fn of this._eventListeners) {
+        try { fn(evt) } catch (e) { console.error('[gateway] listener error:', e) }
       }
       return
     }

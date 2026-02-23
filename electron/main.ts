@@ -493,17 +493,27 @@ function setupIPC() {
       // Update models.providers
       if (!config.models) config.models = { mode: 'merge' }
       if (!config.models.providers) config.models.providers = {}
+      const existingProvider = config.models.providers[params.provider] ?? { models: [] }
+      const newModel = {
+        id: params.modelId,
+        name: params.modelName,
+        reasoning: params.reasoning ?? false,
+        input: ['text'],
+        contextWindow: params.contextWindow ?? 200000,
+        maxTokens: params.maxTokens ?? 8192,
+      }
+      const existingModels: Array<{ id: string;[k: string]: unknown }> = existingProvider.models ?? []
+      const idx = existingModels.findIndex((m) => m.id === params.modelId)
+      if (idx >= 0) {
+        existingModels[idx] = newModel
+      } else {
+        existingModels.push(newModel)
+      }
       config.models.providers[params.provider] = {
+        ...existingProvider,
         baseUrl: params.baseUrl,
         api: params.apiFormat,
-        models: [{
-          id: params.modelId,
-          name: params.modelName,
-          reasoning: params.reasoning ?? false,
-          input: ['text'],
-          contextWindow: params.contextWindow ?? 200000,
-          maxTokens: params.maxTokens ?? 8192,
-        }],
+        models: existingModels,
       }
 
       // Update auth.profiles
@@ -797,6 +807,24 @@ function setupIPC() {
   ipcMain.handle('ollama:applyModel', async (_event, modelId: string) => { await ollamaManager?.applyModel(modelId) })
   ipcMain.handle('ollama:getHardware', () => ollamaManager?.getHardwareInfo() ?? { totalMemory: 0, freeMemory: 0 })
   ipcMain.handle('ollama:cancelDownload', () => { ollamaManager?.cancelDownload() })
+
+  // Ollama models directory
+  ipcMain.handle('ollama:getModelsDir', () => ollamaManager?.getModelsDir() ?? '')
+  ipcMain.handle('ollama:setModelsDir', async (_event, dir: string) => {
+    if (!ollamaManager) throw new Error('OllamaManager not initialized')
+    // 保存到 clawwin-ui.json
+    const ui = readUiConfig()
+    ui.ollamaModelsDir = dir
+    writeUiConfig(ui)
+    // 更新 OllamaManager
+    ollamaManager.setModelsDir(dir)
+    // 如果 Ollama 正在运行，重启以使用新目录
+    const status = await ollamaManager.getStatus()
+    if (status.running) {
+      await ollamaManager.stop()
+      await ollamaManager.start()
+    }
+  })
 }
 
 function initGatewayManager() {
@@ -840,7 +868,14 @@ if (!gotTheLock) {
 app.whenReady().then(async () => {
   setupIPC()
   initGatewayManager()
-  ollamaManager = new OllamaManager()
+  // Ollama base directory: in packaged mode, use a directory next to the exe
+  // so Ollama is installed on the same drive as ClawWin (not always C:\)
+  let ollamaBaseDir: string | undefined
+  if (app.isPackaged) {
+    const exeDir = path.dirname(app.getPath('exe'))
+    ollamaBaseDir = exeDir
+  }
+  ollamaManager = new OllamaManager(ollamaBaseDir)
 
   // Auto-start gateway if not first run (before creating window so state is ready)
   if (!isFirstRun()) {

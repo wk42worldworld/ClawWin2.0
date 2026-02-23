@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import type { GatewayState } from '../../types'
 import splashVideo from '../../assets/splash-video.mp4'
 
@@ -10,10 +10,20 @@ interface VideoSplashProps {
 
 export function VideoSplash({ gatewayState, exiting = false, onRetry }: VideoSplashProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const [waitingLong, setWaitingLong] = useState(false)
 
   useEffect(() => {
     videoRef.current?.play().catch(() => {})
   }, [])
+
+  // 等待超过 8 秒后显示提示
+  useEffect(() => {
+    if (gatewayState === 'starting' || gatewayState === 'restarting') {
+      const timer = setTimeout(() => setWaitingLong(true), 8000)
+      return () => clearTimeout(timer)
+    }
+    setWaitingLong(false)
+  }, [gatewayState])
 
   const isError = gatewayState === 'error'
 
@@ -49,6 +59,9 @@ export function VideoSplash({ gatewayState, exiting = false, onRetry }: VideoSpl
           <div className="video-splash-progress">
             <div className="video-splash-progress-bar" />
           </div>
+          {waitingLong && (
+            <p className="video-splash-hint">首次启动需要较长时间，请耐心等待...</p>
+          )}
         </div>
       )}
     </div>

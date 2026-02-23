@@ -3481,12 +3481,13 @@ body {
 }
 
 .cron-job-card {
+  position: relative;
+  overflow: hidden;
   background: rgba(255, 255, 255, 0.05);
   border: 2px solid transparent;
   border-radius: 16px;
   padding: 16px 20px;
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  animation: subtleIn 0.3s cubic-bezier(0.25, 1, 0.5, 1) both;
 }
 
 .cron-job-card:hover {
@@ -3632,6 +3633,40 @@ body {
   color: var(--text-primary);
 }
 
+/* 时间选择器布局 */
+.cron-time-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cron-time-select {
+  flex: 1;
+  min-width: 80px;
+}
+
+.cron-time-sep {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.cron-date-input,
+.cron-time-input {
+  flex: 1;
+  color-scheme: dark;
+}
+
+.cron-number-input {
+  flex: 1;
+  max-width: 120px;
+}
+
+.cron-unit-select {
+  flex: 0 0 auto;
+  min-width: 80px;
+}
+
 .cron-form-textarea {
   padding: 10px 14px;
   background: rgba(255, 255, 255, 0.03);
@@ -3670,12 +3705,292 @@ body {
 
 .cron-error {
   margin-bottom: 12px;
-  padding: 8px 12px;
-  border-radius: var(--radius);
+  padding: 10px 14px;
+  border-radius: 12px;
   font-size: 13px;
   background: rgba(239, 68, 68, 0.1);
   color: var(--error);
   border: 1px solid rgba(239, 68, 68, 0.3);
+  animation: subtleIn 0.3s ease-out;
+}
+
+.cron-success {
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--success);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  animation: subtleIn 0.3s ease-out;
+}
+
+.cron-job-schedule-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  letter-spacing: 0.5px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+}
+
+.cron-badge-cron {
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+}
+
+.cron-badge-at {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+}
+
+.cron-badge-every {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+}
+
+.cron-confirm-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
+  font-size: 14px;
+  z-index: 2;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.cron-running-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(99, 102, 241, 0.2);
+  color: #818cf8;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.cron-job-running {
+  border-color: rgba(99, 102, 241, 0.3) !important;
+}
+
+.cron-job-disabled {
+  opacity: 0.5;
+}
+
+.cron-job-monitor {
+  display: flex;
+  gap: 16px;
+  margin: 8px 0;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 10px;
+}
+
+.cron-monitor-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cron-monitor-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cron-monitor-value {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.cron-status-ok {
+  color: var(--success);
+}
+
+.cron-status-error {
+  color: var(--error);
+}
+
+.cron-job-last-error {
+  margin: 4px 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  background: rgba(239, 68, 68, 0.08);
+  color: var(--error);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cron-btn-danger {
+  color: var(--error) !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+.cron-btn-danger:hover {
+  background: rgba(239, 68, 68, 0.15) !important;
+}
+
+.cron-btn-run:not(:disabled):hover {
+  color: var(--success) !important;
+  border-color: rgba(34, 197, 94, 0.3) !important;
+  background: rgba(34, 197, 94, 0.1) !important;
+}
+.cron-btn-success {
+  color: var(--success) !important;
+  border-color: rgba(34, 197, 94, 0.3) !important;
+}
+
+
+.cron-toolbar-stats {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.cron-toolbar-running {
+  color: #818cf8;
+  font-weight: 600;
+}
+
+/* ── Cron execution result panel ── */
+
+.cron-result-toggle {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--accent);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 4px 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  transition: background 0.15s, border-color 0.15s;
+}
+.cron-result-toggle:hover {
+  background: rgba(0, 162, 224, 0.1);
+  border-color: rgba(0, 162, 224, 0.3);
+}
+
+.cron-result-arrow {
+  display: inline-block;
+  transition: transform 0.2s;
+  font-size: 10px;
+}
+.cron-result-arrow-up {
+  transform: rotate(180deg);
+}
+
+.cron-result-panel {
+  margin: 10px 0;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  animation: cronResultIn 0.2s ease-out;
+}
+
+@keyframes cronResultIn {
+  from { opacity: 0; max-height: 0; }
+  to { opacity: 1; max-height: 400px; }
+}
+
+.cron-result-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.cron-result-status {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.cron-result-duration {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.cron-result-time {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.cron-result-summary {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: rgba(0, 162, 224, 0.06);
+  border-radius: 8px;
+  border-left: 3px solid var(--accent);
+}
+
+.cron-result-summary-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.cron-result-summary-text {
+  font-size: 12px;
+  color: var(--text-primary);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.cron-result-error {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: rgba(239, 68, 68, 0.06);
+  border-radius: 8px;
+  border-left: 3px solid var(--error);
+}
+
+.cron-result-error-text {
+  font-size: 12px;
+  color: var(--error);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.cron-result-no-summary {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
 }
 
 /* ============================================
@@ -3731,6 +4046,8 @@ body {
   left: 0;
   right: 0;
   display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
   z-index: 2;
   animation: subtleIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both;
@@ -3754,6 +4071,14 @@ body {
   background: var(--accent);
   border-radius: 2px;
   animation: skill-loading-slide 1.2s ease-in-out infinite;
+}
+
+.video-splash-hint {
+  margin-top: 12px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+  animation: fadeIn 0.5s ease-out;
 }
 
 .video-splash-error {
@@ -3933,6 +4258,34 @@ body {
   font-family: var(--font-mono);
 }
 
+/* Storage directory */
+.local-model-storage-dir {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  font-size: 12px;
+}
+.local-model-storage-label {
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.local-model-storage-path {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 3px 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+
 /* Error */
 .local-model-error {
   padding: 10px 14px;
@@ -4052,6 +4405,18 @@ body {
   letter-spacing: 0.1em;
   background: rgba(0, 162, 224, 0.15);
   color: var(--accent);
+}
+.local-model-active-badge {
+  font-size: 10px;
+  padding: 2px 10px;
+  border-radius: 6px;
+  font-weight: 700;
+  background: rgba(74, 222, 128, 0.18);
+  color: #4ade80;
+  white-space: nowrap;
+}
+.local-model-card.active {
+  border-color: rgba(74, 222, 128, 0.35);
 }
 
 .local-model-card-desc {

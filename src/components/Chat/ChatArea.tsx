@@ -109,11 +109,30 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
   const isReady = gatewayState === 'ready'
 
+  const handleCompact = useCallback(() => {
+    if (!isReady || isWaiting || messages.length === 0) return
+    onSend('/compact')
+  }, [isReady, isWaiting, messages.length, onSend])
+
   return (
     <div className="chat-area">
       <div className="chat-header">
         <div className="chat-header-left" />
         <div className="chat-header-right">
+          <button
+            className="chat-header-badge"
+            onClick={handleCompact}
+            title="压缩上下文，释放对话空间"
+            disabled={!isReady || isWaiting || messages.length === 0}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="4 14 10 14 10 20" />
+              <polyline points="20 10 14 10 14 4" />
+              <line x1="14" y1="10" x2="21" y2="3" />
+              <line x1="3" y1="21" x2="10" y2="14" />
+            </svg>
+            压缩
+          </button>
           <button
             className="chat-header-badge"
             onClick={handleScreenshot}
@@ -204,7 +223,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           {gatewayState === 'starting' && '正在启动网关服务...'}
           {gatewayState === 'error' && '网关连接错误，正在尝试重连...'}
           {gatewayState === 'stopped' && '网关服务已停止'}
-          {gatewayState === 'restarting' && '正在重启网关服务...'}
+          {gatewayState === 'restarting' && '正在应用新配置...'}
         </div>
       )}
 

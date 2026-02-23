@@ -20,11 +20,12 @@ export class GatewayManager {
   private state: GatewayState = 'stopped'
   private healthCheckTimer: ReturnType<typeof setInterval> | null = null
   private consecutiveFailures = 0
-  private readonly MAX_FAILURES = 5
+  private readonly MAX_FAILURES = 12
   private readonly HEALTH_CHECK_INTERVAL = 5000
   private readonly SHUTDOWN_TIMEOUT = 5000
   private stopping = false
   private externalGateway = false // 是否使用外部已运行的 Gateway
+  private isRestarting = false // restart() 调用的 start，用较短的健康检查延迟
 
   constructor(private opts: GatewayManagerOptions) {}
 
@@ -136,7 +137,9 @@ export class GatewayManager {
     this.setState('restarting')
     this.log('info', '正在重启 Gateway...')
     await this.stop()
+    this.isRestarting = true
     await this.start()
+    this.isRestarting = false
   }
 
   private setState(state: GatewayState) {
@@ -304,8 +307,8 @@ export class GatewayManager {
     this.consecutiveFailures = 0
     this.stopHealthCheck()
 
-    // 如果是外部 Gateway，立即检查；否则等待启动
-    const initialDelay = this.externalGateway ? 500 : 5000
+    // 如果是外部 Gateway，立即检查；重启时旧进程已干净关闭，只需短延迟；冷启动需要较长等待
+    const initialDelay = this.externalGateway ? 500 : this.isRestarting ? 3000 : 10000
     setTimeout(() => {
       this.performHealthCheck()
       this.healthCheckTimer = setInterval(() => {
