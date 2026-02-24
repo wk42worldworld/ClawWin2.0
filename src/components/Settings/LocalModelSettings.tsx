@@ -187,6 +187,7 @@ export const LocalModelSettings: React.FC<LocalModelSettingsProps> = ({ onSaved 
   const [downloadState, setDownloadState] = useState<LocalModelState | null>(null)
   const [hardware, setHardware] = useState<HardwareInfo | null>(null)
   const [installing, setInstalling] = useState(false)
+  const [installProgress, setInstallProgress] = useState<{ progress: number; downloadedBytes?: number; totalBytes?: number; status: string } | null>(null)
   const [starting, setStarting] = useState(false)
   const [applyingModel, setApplyingModel] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -204,7 +205,19 @@ export const LocalModelSettings: React.FC<LocalModelSettingsProps> = ({ onSaved 
         // Ollama install progress
         if (state.status === 'ready') {
           setInstalling(false)
+          setInstallProgress(null)
           refreshStatus()
+        } else if (state.status === 'error') {
+          setInstalling(false)
+          setInstallProgress(null)
+          setError(state.error ?? '安装失败')
+        } else {
+          setInstallProgress({
+            progress: state.progress ?? 0,
+            downloadedBytes: state.downloadedBytes,
+            totalBytes: state.totalBytes,
+            status: state.status ?? 'downloading',
+          })
         }
       } else {
         setDownloadState(state as LocalModelState)
@@ -406,6 +419,21 @@ export const LocalModelSettings: React.FC<LocalModelSettingsProps> = ({ onSaved 
           )}
         </div>
       </div>
+
+      {/* Ollama Install Progress */}
+      {installing && installProgress && (
+        <div className="local-model-download-bar">
+          <div className="local-model-download-info">
+            <span>{installProgress.status === 'importing' ? '正在解压...' : installProgress.progress < 0 ? '网络中断，自动重试中...' : '正在下载 Ollama'}</span>
+            {installProgress.progress >= 0 && (
+              <span>{installProgress.progress}%{installProgress.downloadedBytes && installProgress.totalBytes ? ` (${formatBytes(installProgress.downloadedBytes)}/${formatBytes(installProgress.totalBytes)})` : ''}</span>
+            )}
+          </div>
+          <div className="local-model-progress-track">
+            <div className="local-model-progress-fill" style={{ width: `${Math.max(0, installProgress.progress)}%` }} />
+          </div>
+        </div>
+      )}
 
       {/* Hardware Info */}
       {hardware && (

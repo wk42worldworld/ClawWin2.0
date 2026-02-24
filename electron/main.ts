@@ -11,6 +11,13 @@ import { OllamaManager } from './ollama-manager'
 import { checkForUpdate, downloadUpdate, installUpdate, cancelDownload, type UpdateInfo } from './update-checker'
 import { listAllChannelPairings, approvePairingCode, getEnabledChannels } from './pairing-manager'
 
+// 防止 stdout/stderr EPIPE 导致未捕获异常（Windows 打包 GUI 应用无控制台）
+for (const stream of [process.stdout, process.stderr]) {
+  stream?.on?.('error', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'EPIPE') return // 静默忽略
+  })
+}
+
 let mainWindow: BrowserWindow | null = null
 let gatewayManager: GatewayManager | null = null
 let tray: Tray | null = null
@@ -847,14 +854,17 @@ function initGatewayManager() {
 // 单实例锁：防止同时运行多个 ClawWin
 const gotTheLock = app.requestSingleInstanceLock()
 if (!gotTheLock) {
-  dialog.showMessageBoxSync({
-    type: 'warning',
-    title: 'ClawWin',
-    message: 'ClawWin 已在运行中',
-    detail: '请关闭已运行的 ClawWin 后再启动。',
-    buttons: ['确定'],
+  // dialog 需要 app ready 后才能使用，这里等 ready 再弹窗
+  app.whenReady().then(() => {
+    dialog.showMessageBoxSync({
+      type: 'warning',
+      title: 'ClawWin',
+      message: 'ClawWin 已在运行中',
+      detail: '请关闭已运行的 ClawWin 后再启动。',
+      buttons: ['确定'],
+    })
+    app.quit()
   })
-  app.quit()
 } else {
   app.on('second-instance', () => {
     if (mainWindow) {

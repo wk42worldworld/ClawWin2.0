@@ -329,16 +329,35 @@ export class OllamaManager {
     this.sendProgress({ id: '__ollama_install__', status: 'downloading', progress: 0 })
 
     let lastError: Error | null = null
-    for (const url of OllamaManager.OLLAMA_DOWNLOAD_URLS) {
-      try {
-        await this.downloadFile(url, zipPath, (progress, downloaded, total) => {
-          this.sendProgress({ id: '__ollama_install__', status: 'downloading', progress, downloadedBytes: downloaded, totalBytes: total })
-        })
-        lastError = null
-        break
-      } catch (err) {
-        lastError = err instanceof Error ? err : new Error(String(err))
-        // 清理失败的下载文件，尝试下一个源
+    const MAX_RETRIES = 3
+    const RETRY_DELAY = 3000 // 3秒后重试
+
+    for (let i = 0; i < OllamaManager.OLLAMA_DOWNLOAD_URLS.length; i++) {
+      const url = OllamaManager.OLLAMA_DOWNLOAD_URLS[i]
+
+      // 每个源最多重试 MAX_RETRIES 次（支持断点续传）
+      for (let retry = 0; retry <= MAX_RETRIES; retry++) {
+        try {
+          await this.downloadFile(url, zipPath, (progress, downloaded, total) => {
+            this.sendProgress({ id: '__ollama_install__', status: 'downloading', progress, downloadedBytes: downloaded, totalBytes: total })
+          })
+          lastError = null
+          break
+        } catch (err) {
+          lastError = err instanceof Error ? err : new Error(String(err))
+          if (retry < MAX_RETRIES) {
+            // 网络中断，等待后自动重试（downloadFile 支持 Range 续传）
+            this.sendProgress({ id: '__ollama_install__', status: 'downloading', progress: -1 })
+            await this.sleep(RETRY_DELAY)
+            continue
+          }
+        }
+      }
+      if (!lastError) break
+
+      // 换到不同域名的下载源时，删除部分文件（不同源文件可能不同，续传不可靠）
+      const nextUrl = OllamaManager.OLLAMA_DOWNLOAD_URLS[i + 1]
+      if (nextUrl && new URL(nextUrl).hostname !== new URL(url).hostname) {
         try { fs.unlinkSync(zipPath) } catch { /* ignore */ }
         try { fs.unlinkSync(zipPath + '.downloading') } catch { /* ignore */ }
       }
@@ -362,15 +381,27 @@ export class OllamaManager {
     // Clean up zip
     try { fs.unlinkSync(zipPath) } catch { /* ignore */ }
 
-    // Verify
+    // Verify — ollama.exe might be nested in a subdirectory (e.g., ollama-windows-amd64/)
     if (!fs.existsSync(this.ollamaExe)) {
-      // ollama.exe might be in a subdirectory
-      const files = fs.readdirSync(this.ollamaDir, { recursive: true }) as string[]
-      const found = files.find(f => f.endsWith('ollama.exe'))
-      if (found) {
-        const foundPath = path.join(this.ollamaDir, found)
-        if (foundPath !== this.ollamaExe) {
-          fs.renameSync(foundPath, this.ollamaExe)
+      // Find ollama.exe and move entire contents of its parent to ollamaDir
+      const entries = fs.readdirSync(this.ollamaDir, { withFileTypes: true })
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          const subDir = path.join(this.ollamaDir, entry.name)
+          const exeInSub = path.join(subDir, 'ollama.exe')
+          if (fs.existsSync(exeInSub)) {
+            // Move all files from subdirectory to ollamaDir
+            const subFiles = fs.readdirSync(subDir)
+            for (const f of subFiles) {
+              const src = path.join(subDir, f)
+              const dst = path.join(this.ollamaDir, f)
+              try { fs.rmSync(dst, { recursive: true, force: true }) } catch { /* ignore */ }
+              fs.renameSync(src, dst)
+            }
+            // Remove now-empty subdirectory
+            try { fs.rmdirSync(subDir) } catch { /* ignore */ }
+            break
+          }
         }
       }
     }

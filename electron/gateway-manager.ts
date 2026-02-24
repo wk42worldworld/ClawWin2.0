@@ -381,19 +381,26 @@ export class GatewayManager {
     try {
       if (process.platform === 'win32') {
         // Windows: 通过 netstat 找到占用端口的 PID 并终止
-        const output = execSync(
-          `netstat -ano | findstr "LISTENING" | findstr ":${port}"`,
-          { encoding: 'utf-8', timeout: 5000 }
-        )
+        // 注意：不使用管道命令（findstr 无匹配时 EPIPE 会导致未捕获异常）
+        let output = ''
+        try {
+          output = execSync('netstat -ano', { encoding: 'utf-8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] })
+        } catch {
+          // netstat 失败，跳过
+          return
+        }
         const pids = new Set<string>()
+        const portStr = `:${port}`
         for (const line of output.split('\n')) {
-          const parts = line.trim().split(/\s+/)
+          const trimmed = line.trim()
+          if (!trimmed.includes('LISTENING') || !trimmed.includes(portStr)) continue
+          const parts = trimmed.split(/\s+/)
           const pid = parts[parts.length - 1]
           if (pid && /^\d+$/.test(pid) && pid !== '0') pids.add(pid)
         }
         for (const pid of pids) {
           try {
-            execSync(`taskkill /PID ${pid} /F`, { timeout: 5000 })
+            execSync(`taskkill /PID ${pid} /F`, { timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] })
             this.log('info', `已终止旧 Gateway 进程 (PID: ${pid})`)
           } catch {
             // 进程可能已退出
