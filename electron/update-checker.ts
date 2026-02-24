@@ -154,7 +154,12 @@ function tryDownload(
   const url = urls[index]
   return new Promise<string>((resolve, reject) => {
     const mod = url.startsWith('https') ? https : http
-    const req = mod.get(url, { headers: { 'User-Agent': 'ClawWin-Updater' }, timeout: 5000 }, (res) => {
+    // 不使用 http timeout 选项（socket 级超时），改用手动连接计时器，
+    // 避免 302 重定向后原始 socket 空闲触发 timeout 导致误报"连接超时"
+    const req = mod.get(url, { headers: { 'User-Agent': 'ClawWin-Updater' } }, (res) => {
+      // 收到响应（含 302），立即清除连接超时
+      clearTimeout(connectTimer)
+
       // 跟随重定向（有深度限制）
       if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
         if (redirectsLeft <= 0) { reject(new Error('Too many redirects')); return }
@@ -191,8 +196,9 @@ function tryDownload(
       file.on('error', (err) => { clearTimeout(dataTimer); fs.unlink(destPath, () => {}); reject(err) })
       res.on('error', (err) => { clearTimeout(dataTimer); fs.unlink(destPath, () => {}); reject(err) })
     })
-    req.on('timeout', () => { req.destroy(); reject(new Error('连接超时')) })
-    req.on('error', reject)
+    // 连接超时：5 秒内未收到任何响应则中断
+    const connectTimer = setTimeout(() => { req.destroy(); reject(new Error('连接超时')) }, 5000)
+    req.on('error', (err) => { clearTimeout(connectTimer); reject(err) })
     currentDownloadReq = req
   }).catch((err) => {
     // 如果是用户主动取消，不再尝试下一个源
