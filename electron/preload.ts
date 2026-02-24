@@ -120,6 +120,9 @@ const electronAPI = {
     getTimeout: (): Promise<number> => ipcRenderer.invoke('config:getTimeout'),
     saveTimeout: (ms: number): Promise<{ ok: boolean; error?: string }> =>
       ipcRenderer.invoke('config:saveTimeout', ms),
+    getSkipUpdate: (): Promise<boolean> => ipcRenderer.invoke('config:getSkipUpdate'),
+    saveSkipUpdate: (skip: boolean): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke('config:saveSkipUpdate', skip),
   },
 
   // Sessions persistence

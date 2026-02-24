@@ -674,6 +674,28 @@ function setupIPC() {
     }
   })
 
+  // Get skip-update-check flag
+  ipcMain.handle('config:getSkipUpdate', () => {
+    try {
+      const ui = readUiConfig()
+      return (ui.skipUpdateCheck as boolean) ?? false
+    } catch {
+      return false
+    }
+  })
+
+  // Save skip-update-check flag
+  ipcMain.handle('config:saveSkipUpdate', (_event, skip: boolean) => {
+    try {
+      const ui = readUiConfig()
+      ui.skipUpdateCheck = !!skip
+      writeUiConfig(ui)
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
   // ===== Sessions persistence =====
 
   const SESSIONS_FILE = path.join(os.homedir(), '.openclaw', 'sessions.json')
@@ -913,8 +935,18 @@ app.whenReady().then(async () => {
   ollamaManager?.setMainWindow(mainWindow)
   createTray()
 
-  // 启动后检查更新
+  // 启动后检查更新（尊重用户的跳过更新设置）
   mainWindow?.webContents.on('did-finish-load', () => {
+    try {
+      const uiPath = path.join(os.homedir(), '.openclaw', 'clawwin-ui.json')
+      if (fs.existsSync(uiPath)) {
+        const ui = JSON.parse(fs.readFileSync(uiPath, 'utf-8'))
+        if (ui.skipUpdateCheck) {
+          console.log('[update] skip update check (user disabled)')
+          return
+        }
+      }
+    } catch { /* ignore, proceed with check */ }
     checkForUpdate().then((info) => {
       if (info) {
         pendingUpdateInfo = info

@@ -58,6 +58,7 @@ function App() {
   const [appVersion, setAppVersion] = useState('')
   const [updateChecking, setUpdateChecking] = useState(false)
   const [updateCheckResult, setUpdateCheckResult] = useState<string | null>(null)
+  const [skipUpdateCheck, setSkipUpdateCheck] = useState(false)
   const splashActivatedAt = useRef(0)
   const waitingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -124,12 +125,15 @@ function App() {
     window.electronAPI.config.getTimeout().then((ms) => {
       if (ms > 0) setResponseTimeout(ms)
     }).catch(() => {})
+    // Load skip-update-check preference
+    window.electronAPI.config.getSkipUpdate().then(setSkipUpdateCheck).catch(() => {})
     // Load app version
     window.electronAPI.app.getVersion().then(setAppVersion).catch(() => {})
   }, [])
 
   // 监听更新通知
   useEffect(() => {
+    if (skipUpdateCheck) return
     const unsub = window.electronAPI.app.onUpdateAvailable((info) => {
       setUpdateInfo(info)
       setUpdateDialogVisible(true)
@@ -146,7 +150,7 @@ function App() {
       }).catch(() => {})
     }, 3000)
     return () => { unsub(); clearTimeout(timer) }
-  }, [])
+  }, [skipUpdateCheck])
 
   // Save sessions to disk on change (debounced)
   useEffect(() => {
@@ -734,6 +738,18 @@ function App() {
                   </button>
                 </div>
                 {updateCheckResult && <p className="settings-hint">{updateCheckResult}</p>}
+                <label className="settings-toggle-row">
+                  <input
+                    type="checkbox"
+                    checked={skipUpdateCheck}
+                    onChange={(e) => {
+                      const val = e.target.checked
+                      setSkipUpdateCheck(val)
+                      window.electronAPI.config.saveSkipUpdate(val).catch(() => {})
+                    }}
+                  />
+                  <span>禁用自动更新提示</span>
+                </label>
               </div>
               <button
                 className="btn-secondary settings-reconfig-btn"
