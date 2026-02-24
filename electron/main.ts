@@ -58,6 +58,9 @@ function createTray() {
         try {
           await gatewayManager?.stop()
         } catch { /* ignore */ }
+        try {
+          await ollamaManager?.stop()
+        } catch { /* ignore */ }
         tray?.destroy()
         tray = null
         app.quit()
@@ -933,6 +936,7 @@ app.on('before-quit', () => {
   // Gateway stop is handled by tray exit handler.
   // This is a fallback for other quit paths (e.g. OS shutdown).
   gatewayManager?.stop().catch(() => {})
+  ollamaManager?.stop().catch(() => {})
   tray?.destroy()
   tray = null
 })

@@ -1,7 +1,7 @@
 import path from 'node:path'
 import os from 'node:os'
 import fs from 'node:fs'
-import { spawn, execFile, type ChildProcess } from 'node:child_process'
+import { spawn, execFile, execSync, type ChildProcess } from 'node:child_process'
 import https from 'node:https'
 import http from 'node:http'
 import type { BrowserWindow } from 'electron'
@@ -307,16 +307,30 @@ export class OllamaManager {
   }
 
   async getStatus(): Promise<{ installed: boolean; running: boolean; version?: string }> {
-    const installed = fs.existsSync(this.ollamaExe)
-    if (!installed) return { installed: false, running: false }
+    const localExe = fs.existsSync(this.ollamaExe)
 
+    // 先检查 Ollama 是否已在运行（无论 exe 是否在我们目录下）
     try {
       const resp = await this.httpGet('http://127.0.0.1:11434/api/version')
       const data = JSON.parse(resp)
       return { installed: true, running: true, version: data.version }
     } catch {
-      return { installed: true, running: false }
+      // Ollama 没在运行
     }
+
+    // 没在运行，则根据本地 exe 判断是否已安装
+    if (localExe) return { installed: true, running: false }
+
+    // 再检查系统 PATH 中是否有 ollama
+    try {
+      const cmd = process.platform === 'win32' ? 'where ollama' : 'which ollama'
+      execSync(cmd, { timeout: 3000, stdio: ['pipe', 'pipe', 'pipe'] })
+      return { installed: true, running: false }
+    } catch {
+      // PATH 中也没有
+    }
+
+    return { installed: false, running: false }
   }
 
   async install(): Promise<void> {
@@ -634,7 +648,7 @@ export class OllamaManager {
         reasoning: modelId.includes('r1'),
         input: ['text'],
         contextWindow: 32768,
-        maxTokens: 8192,
+        maxTokens: 16384,
       }],
     }
 

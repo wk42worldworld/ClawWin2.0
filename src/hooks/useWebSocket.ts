@@ -167,6 +167,20 @@ export function useWebSocket({ url, token, enabled }: UseWebSocketOptions): UseW
         status: 'done',
       }
       onMessageStream.current?.(msg)
+    } else if (state === 'terminated') {
+      // 上下文耗尽或进程被终止
+      const buffered = streamBufferRef.current.get(runId) || ''
+      streamBufferRef.current.delete(runId)
+      const hint = '\n\n---\n> 回复被中断，可能是上下文空间不足。建议点击「压缩」后重试。'
+
+      const msg: ChatMessage = {
+        id: runId,
+        role: 'assistant',
+        content: buffered + hint,
+        timestamp: Date.now(),
+        status: 'done',
+      }
+      onMessageStream.current?.(msg)
     }
   }, [])
 
