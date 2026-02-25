@@ -1190,6 +1190,18 @@ body {
   font-size: 11px;
 }
 
+.message-queued {
+  opacity: 0.75;
+}
+.message-queued-hint {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 /* ============================================
    Message Actions (on light bg)
    ============================================ */

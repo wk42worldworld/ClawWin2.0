@@ -78,6 +78,7 @@ interface MessageBubbleProps {
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onCopy, onRetry }) => {
   const isUser = message.role === 'user'
+  const isQueued = message.status === 'queued'
   const isStreaming = message.status === 'streaming'
   const isError = message.status === 'error'
 
@@ -93,7 +94,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onCopy, o
   const displayContent = message.content
 
   return (
-    <div className={`message-bubble ${isUser ? 'message-user' : 'message-assistant'} ${isStreaming ? 'message-bubble-streaming' : ''} ${isError ? 'message-error-bubble' : ''}`}>
+    <div className={`message-bubble ${isUser ? 'message-user' : 'message-assistant'} ${isStreaming ? 'message-bubble-streaming' : ''} ${isError ? 'message-error-bubble' : ''} ${isQueued ? 'message-queued' : ''}`}>
       <div className="message-body">
         <div className={`message-content ${isStreaming ? 'message-streaming' : ''} ${isError ? 'message-error-content' : ''}${hasAttachments ? ' has-attachments' : ''}`}>
           {hasAttachments && (
@@ -165,6 +166,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onCopy, o
             <span className="streaming-pulse-dot" />
             正在输入...
           </div>
+        )}
+        {isQueued && (
+          <div className="message-queued-hint">排队中，等待当前回复结束</div>
         )}
         {isError && (
           <div className="message-error">

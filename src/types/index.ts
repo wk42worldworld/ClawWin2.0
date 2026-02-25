@@ -181,7 +181,7 @@ export interface ChatMessage {
   content: string
   attachments?: ChatAttachment[]
   timestamp: number
-  status?: 'sending' | 'streaming' | 'done' | 'error'
+  status?: 'sending' | 'queued' | 'streaming' | 'done' | 'error'
 }
 
 export interface ChatSession {
