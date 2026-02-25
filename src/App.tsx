@@ -48,7 +48,7 @@ function App() {
   const [setupSkillsConfig, setSetupSkillsConfig] = useState<SkillsConfig>({})
   const [setupSkillsLoading, setSetupSkillsLoading] = useState(false)
   const [settingsWorkspace, setSettingsWorkspace] = useState(setup.config.workspace ?? '~/openclaw')
-  const [responseTimeout, setResponseTimeout] = useState(60000)
+  const [responseTimeout, setResponseTimeout] = useState(300000)
   const [splashDismissed, setSplashDismissed] = useState(false)
   const [showSplashExit, setShowSplashExit] = useState(false)
   const [splashActive, setSplashActive] = useState(false)
@@ -59,6 +59,7 @@ function App() {
   const [updateChecking, setUpdateChecking] = useState(false)
   const [updateCheckResult, setUpdateCheckResult] = useState<string | null>(null)
   const [skipUpdateCheck, setSkipUpdateCheck] = useState(false)
+  const [showCloseDialog, setShowCloseDialog] = useState(false)
   const splashActivatedAt = useRef(0)
   const waitingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -129,6 +130,14 @@ function App() {
     window.electronAPI.config.getSkipUpdate().then(setSkipUpdateCheck).catch(() => {})
     // Load app version
     window.electronAPI.app.getVersion().then(setAppVersion).catch(() => {})
+  }, [])
+
+  // 监听窗口关闭请求
+  useEffect(() => {
+    const unsub = window.electronAPI.app.onCloseRequested(() => {
+      setShowCloseDialog(true)
+    })
+    return unsub
   }, [])
 
   // 监听更新通知
@@ -673,7 +682,16 @@ function App() {
               </div>
               <div className="settings-section">
                 <h3>网关服务</h3>
-                <p className="settings-value">端口 {gateway.port} · {gateway.state === 'ready' ? '运行中' : gateway.state}</p>
+                <div className="settings-update-row">
+                  <p className="settings-value">端口 {gateway.port} · {gateway.state === 'ready' ? '运行中' : gateway.state}</p>
+                  <button
+                    className="btn-secondary"
+                    disabled={gateway.state === 'starting' || gateway.state === 'restarting'}
+                    onClick={() => gateway.restart()}
+                  >
+                    {gateway.state === 'starting' || gateway.state === 'restarting' ? '重启中...' : '重启网关'}
+                  </button>
+                </div>
               </div>
               <div className="settings-section">
                 <h3>响应超时</h3>
@@ -818,6 +836,34 @@ function App() {
             })
           }}
         />
+      )}
+
+      {showCloseDialog && (
+        <div className="settings-overlay" onClick={() => setShowCloseDialog(false)}>
+          <div className="close-dialog" onClick={e => e.stopPropagation()}>
+            <div className="close-dialog-header">
+              <h2>关闭 ClawWin</h2>
+            </div>
+            <div className="close-dialog-body">
+              <p>请选择关闭方式</p>
+            </div>
+            <div className="close-dialog-actions">
+              <button className="btn-secondary" onClick={() => {
+                setShowCloseDialog(false)
+                window.electronAPI.app.hideToTray()
+              }}>
+                最小化到托盘
+              </button>
+              <button className="btn-danger" onClick={() => {
+                setShowCloseDialog(false)
+                window.electronAPI.app.quitApp()
+              }}>
+                退出程序
+              </button>
+            </div>
+            <p className="close-dialog-hint">最小化到托盘将保持网关运行，退出程序将关闭所有进程</p>
+          </div>
+        </div>
       )}
     </ErrorBoundary>
   )

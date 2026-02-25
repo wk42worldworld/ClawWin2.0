@@ -169,10 +169,10 @@ function createWindow() {
   }
 
   mainWindow.on('close', (event) => {
-    if (!isQuitting) {
-      event.preventDefault()
-      mainWindow?.hide()
-    }
+    if (isQuitting) return
+    event.preventDefault()
+    // 通知前端弹出自定义关闭选择框
+    mainWindow?.webContents.send('app:closeRequested')
   })
 
   mainWindow.on('closed', () => {
@@ -306,6 +306,21 @@ function setupIPC() {
 
   ipcMain.handle('app:cancelDownload', () => {
     cancelDownload()
+  })
+
+  // 关闭窗口选择：最小化到托盘
+  ipcMain.handle('app:hideToTray', () => {
+    mainWindow?.hide()
+  })
+
+  // 关闭窗口选择：彻底退出
+  ipcMain.handle('app:quitApp', async () => {
+    isQuitting = true
+    try { await gatewayManager?.stop() } catch { /* ignore */ }
+    try { await ollamaManager?.stop() } catch { /* ignore */ }
+    tray?.destroy()
+    tray = null
+    app.quit()
   })
 
   // ── 区域截屏 ──────────────────────────────────────────
@@ -656,9 +671,9 @@ function setupIPC() {
   ipcMain.handle('config:getTimeout', () => {
     try {
       const ui = readUiConfig()
-      return (ui.responseTimeout as number) ?? 60000
+      return (ui.responseTimeout as number) ?? 300000
     } catch {
-      return 60000
+      return 300000
     }
   })
 

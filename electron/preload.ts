@@ -88,6 +88,13 @@ const electronAPI = {
       return () => ipcRenderer.removeListener('app:downloadProgress', handler)
     },
     installUpdate: (): Promise<void> => ipcRenderer.invoke('app:installUpdate'),
+    hideToTray: (): Promise<void> => ipcRenderer.invoke('app:hideToTray'),
+    quitApp: (): Promise<void> => ipcRenderer.invoke('app:quitApp'),
+    onCloseRequested: (callback: () => void) => {
+      const handler = () => callback()
+      ipcRenderer.on('app:closeRequested', handler)
+      return () => ipcRenderer.removeListener('app:closeRequested', handler)
+    },
     captureScreen: (): Promise<boolean> => ipcRenderer.invoke('app:captureScreen'),
     startScreenshot: (): Promise<boolean> => ipcRenderer.invoke('app:startScreenshot'),
     onScreenshotCaptured: (callback: (data: { filePath: string; base64: string; fileName: string }) => void) => {

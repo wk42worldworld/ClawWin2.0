@@ -19,6 +19,8 @@ extraResources:
     to: bundled/openclaw/
     filter:
       - "**/*"
+  - from: assets/icon.ico
+    to: assets/icon.ico
 
 win:
   target:

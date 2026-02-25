@@ -4830,6 +4830,70 @@ body {
   opacity: 0.85;
 }
 
+/* ── Close Dialog ── */
+.close-dialog {
+  width: 380px;
+  background: var(--bg-sidebar);
+  border: 1px solid rgba(0, 162, 224, 0.2);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 30px rgba(0, 162, 224, 0.1);
+  animation: dialogSlideIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  overflow: hidden;
+  text-align: center;
+}
+
+.close-dialog-header {
+  padding: 20px 24px 0;
+}
+
+.close-dialog-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.close-dialog-body {
+  padding: 12px 24px 4px;
+}
+
+.close-dialog-body p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.close-dialog-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px 24px 12px;
+}
+
+.close-dialog-hint {
+  margin: 0;
+  padding: 0 24px 18px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+.btn-danger {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  background: #e04040;
+  color: #fff;
+  transition: opacity 0.15s;
+}
+
+.btn-danger:hover {
+  opacity: 0.85;
+}
+
 /* ── Screenshot Toast ── */
 .screenshot-toast {
   position: absolute;

@@ -126,6 +126,9 @@ interface ElectronApp {
   cancelDownload: () => Promise<void>
   onDownloadProgress: (callback: (progress: DownloadProgress) => void) => () => void
   installUpdate: () => Promise<void>
+  hideToTray: () => Promise<void>
+  quitApp: () => Promise<void>
+  onCloseRequested: (callback: () => void) => () => void
   captureScreen: () => Promise<boolean>
   startScreenshot: () => Promise<boolean>
   onScreenshotCaptured: (callback: (data: { filePath: string; base64: string; fileName: string }) => void) => () => void
