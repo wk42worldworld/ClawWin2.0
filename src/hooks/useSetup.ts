@@ -131,7 +131,7 @@ export const MODEL_PROVIDERS: ModelProvider[] = [
   },
 ]
 
-export type SetupStep = 'welcome' | 'model' | 'apikey' | 'workspace' | 'gateway' | 'channels' | 'skills' | 'complete'
+export type SetupStep = 'welcome' | 'model' | 'apikey' | 'workspace' | 'gateway' | 'complete'
 
 /**
  * Generate a random 48-character hex token for gateway authentication.

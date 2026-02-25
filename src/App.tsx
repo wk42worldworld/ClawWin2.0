@@ -6,8 +6,6 @@ import { ModelSelect } from './components/Setup/ModelSelect'
 import { ApiKeyInput } from './components/Setup/ApiKeyInput'
 import { WorkspaceSetup } from './components/Setup/WorkspaceSetup'
 import { GatewaySetup } from './components/Setup/GatewaySetup'
-import { ChannelSetup } from './components/Setup/ChannelSetup'
-import { SkillsSetup } from './components/Setup/SkillsSetup'
 import { SetupComplete } from './components/Setup/SetupComplete'
 import { ErrorBoundary } from './components/Common/ErrorBoundary'
 import { Loading } from './components/Common/Loading'
@@ -20,9 +18,9 @@ import { CronManager } from './components/Settings/CronManager'
 import { useGateway } from './hooks/useGateway'
 import { useWebSocket } from './hooks/useWebSocket'
 import { useSetup, type SetupStep } from './hooks/useSetup'
-import type { ChatMessage, ChatSession, ChatAttachment, ModelProvider, ModelInfo, SkillInfo, SkillsConfig, UpdateInfo } from './types'
+import type { ChatMessage, ChatSession, ChatAttachment, ModelProvider, ModelInfo, UpdateInfo } from './types'
 
-const SETUP_STEPS: SetupStep[] = ['welcome', 'model', 'apikey', 'workspace', 'gateway', 'channels', 'skills', 'complete']
+const SETUP_STEPS: SetupStep[] = ['welcome', 'model', 'apikey', 'workspace', 'gateway', 'complete']
 
 function generateId(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
@@ -44,9 +42,6 @@ function App() {
   const [showModelSettings, setShowModelSettings] = useState(false)
   const [showChannelSettings, setShowChannelSettings] = useState(false)
   const [showCronManager, setShowCronManager] = useState(false)
-  const [setupSkills, setSetupSkills] = useState<SkillInfo[]>([])
-  const [setupSkillsConfig, setSetupSkillsConfig] = useState<SkillsConfig>({})
-  const [setupSkillsLoading, setSetupSkillsLoading] = useState(false)
   const [settingsWorkspace, setSettingsWorkspace] = useState(setup.config.workspace ?? '~/openclaw')
   const [responseTimeout, setResponseTimeout] = useState(300000)
   const [splashDismissed, setSplashDismissed] = useState(false)
@@ -465,40 +460,8 @@ function App() {
               onBack={() => setup.setStep('workspace')}
               onNext={(port) => {
                 setup.updateConfig({ gatewayPort: port })
-                setup.setStep('channels')
+                setup.setStep('complete')
               }}
-              onSkip={() => setup.setStep('channels')}
-            />
-          )}
-
-          {setup.step === 'channels' && (
-            <ChannelSetup
-              channels={setup.config.channels}
-              onBack={() => setup.setStep('gateway')}
-              onNext={(channels) => {
-                setup.updateConfig({ channels })
-                // Load skills list before entering skills step
-                setSetupSkillsLoading(true)
-                window.electronAPI.skills.list()
-                  .then((list) => setSetupSkills(list))
-                  .catch(() => setSetupSkills([]))
-                  .finally(() => setSetupSkillsLoading(false))
-                setup.setStep('skills')
-              }}
-            />
-          )}
-
-          {setup.step === 'skills' && (
-            <SkillsSetup
-              skills={setupSkills}
-              skillsConfig={setupSkillsConfig}
-              loading={setupSkillsLoading}
-              onConfigChange={(config) => {
-                setSetupSkillsConfig(config)
-                setup.updateConfig({ skills: config })
-              }}
-              onBack={() => setup.setStep('channels')}
-              onNext={() => setup.setStep('complete')}
               onSkip={() => setup.setStep('complete')}
             />
           )}
@@ -514,7 +477,7 @@ function App() {
               error={setup.saveError}
               onBack={() => {
                 setup.clearError()
-                setup.setStep('skills')
+                setup.setStep('gateway')
               }}
               onComplete={handleSetupComplete}
             />
