@@ -12,6 +12,8 @@ interface UseWebSocketReturn {
   connected: boolean
   hello: GatewayHelloOk | null
   sendMessage: (sessionKey: string, content: string, attachments?: ChatAttachment[]) => void
+  abortSession: (sessionKey: string) => Promise<void>
+  isStreaming: boolean
   onMessageStream: React.MutableRefObject<((msg: ChatMessage) => void) | null>
   reconnect: () => void
   client: GatewayClient | null
@@ -58,6 +60,7 @@ function extractText(message: unknown): string {
 export function useWebSocket({ url, token, enabled }: UseWebSocketOptions): UseWebSocketReturn {
   const [connected, setConnected] = useState(false)
   const [hello, setHello] = useState<GatewayHelloOk | null>(null)
+  const [isStreaming, setIsStreaming] = useState(false)
   const clientRef = useRef<GatewayClient | null>(null)
   const onMessageStream = useRef<((msg: ChatMessage) => void) | null>(null)
   // 追踪每个 runId 的累积文本（用于 delta 流式更新）
@@ -125,6 +128,7 @@ export function useWebSocket({ url, token, enabled }: UseWebSocketOptions): UseW
           timestamp: Date.now(),
           status: 'streaming',
         }
+        setIsStreaming(true)
         onMessageStream.current?.(msg)
       }
     } else if (state === 'final') {
@@ -141,6 +145,7 @@ export function useWebSocket({ url, token, enabled }: UseWebSocketOptions): UseW
         timestamp: Date.now(),
         status: 'done',
       }
+      setIsStreaming(false)
       onMessageStream.current?.(msg)
     } else if (state === 'error') {
       const errorMessage = (payload.errorMessage as string) || '发生错误'
@@ -153,6 +158,7 @@ export function useWebSocket({ url, token, enabled }: UseWebSocketOptions): UseW
         timestamp: Date.now(),
         status: 'error',
       }
+      setIsStreaming(false)
       onMessageStream.current?.(msg)
     } else if (state === 'aborted') {
       // 被中断的响应，使用已有内容
@@ -166,6 +172,7 @@ export function useWebSocket({ url, token, enabled }: UseWebSocketOptions): UseW
         timestamp: Date.now(),
         status: 'done',
       }
+      setIsStreaming(false)
       onMessageStream.current?.(msg)
     } else if (state === 'terminated') {
       // 上下文耗尽或进程被终止
@@ -180,6 +187,7 @@ export function useWebSocket({ url, token, enabled }: UseWebSocketOptions): UseW
         timestamp: Date.now(),
         status: 'done',
       }
+      setIsStreaming(false)
       onMessageStream.current?.(msg)
     }
   }, [])
@@ -234,10 +242,20 @@ export function useWebSocket({ url, token, enabled }: UseWebSocketOptions): UseW
     })
   }, [])
 
+  const abortSession = useCallback(async (sessionKey: string) => {
+    const client = clientRef.current
+    if (!client) return
+    try {
+      await client.request('chat.abort', { sessionKey })
+    } catch (err) {
+      console.error('[ws] chat.abort failed:', err)
+    }
+  }, [])
+
   const reconnect = useCallback(() => {
     clientRef.current?.stop()
     clientRef.current?.start()
   }, [])
 
-  return { connected, hello, sendMessage, onMessageStream, reconnect, client: clientRef.current }
+  return { connected, hello, sendMessage, abortSession, isStreaming, onMessageStream, reconnect, client: clientRef.current }
 }
