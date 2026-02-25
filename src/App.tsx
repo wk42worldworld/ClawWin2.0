@@ -213,15 +213,18 @@ function App() {
       setSessions((prev) =>
         prev.map((s) => {
           if (s.id !== sid) return s
-          const existingIdx = s.messages.findIndex((m) => m.id === msg.id)
+          // 收到 AI 回复，将所有 queued 消息标记为 done
+          const messages = s.messages.map((m) =>
+            m.status === 'queued' ? { ...m, status: 'done' as const } : m
+          )
+          const existingIdx = messages.findIndex((m) => m.id === msg.id)
           if (existingIdx >= 0) {
-            const updated = [...s.messages]
-            updated[existingIdx] = msg
-            return { ...s, messages: updated, updatedAt: Date.now() }
+            messages[existingIdx] = msg
+            return { ...s, messages, updatedAt: Date.now() }
           }
           return {
             ...s,
-            messages: [...s.messages, msg],
+            messages: [...messages, msg],
             updatedAt: Date.now(),
           }
         })
@@ -295,13 +298,15 @@ function App() {
         return
       }
 
+      const isAiBusy = isWaiting || ws.isStreaming
+
       const userMsg: ChatMessage = {
         id: generateId(),
         role: 'user',
         content,
         attachments,
         timestamp: Date.now(),
-        status: 'done',
+        status: isAiBusy ? 'queued' : 'done',
       }
 
       setSessions((prev) =>
@@ -317,16 +322,15 @@ function App() {
         })
       )
 
-      // 如果正在流式回复，先中断
-      if (ws.isStreaming && activeSessionId) {
-        ws.abortSession(activeSessionId)
+      // 只在空闲时才显示等待指示器，避免空白气泡
+      if (!isAiBusy) {
+        startWaiting()
       }
 
-      startWaiting()
-      // 每个前端会话用自己的 id 作为 Gateway sessionKey
+      // 发送消息到后端，后端队列会自动处理（collect 模式）
       ws.sendMessage(activeSessionId, content, attachments)
     },
-    [activeSessionId, ws, startWaiting]
+    [activeSessionId, ws, startWaiting, isWaiting]
   )
 
   // Setup wizard handlers
