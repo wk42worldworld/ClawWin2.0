@@ -33,20 +33,22 @@ interface InputAreaProps {
   onSend: (content: string, attachments?: ChatAttachment[]) => void
   disabled?: boolean
   placeholder?: string
+  isWaiting?: boolean
+  isStreaming?: boolean
+  onStop?: () => void
   externalAttachment?: AttachmentWithPreview | null
   onExternalAttachmentConsumed?: () => void
-  onStop?: () => void
-  isStreaming?: boolean
 }
 
 export const InputArea: React.FC<InputAreaProps> = ({
   onSend,
   disabled = false,
   placeholder = '输入消息...',
+  isWaiting = false,
+  isStreaming = false,
+  onStop,
   externalAttachment,
   onExternalAttachmentConsumed,
-  onStop,
-  isStreaming = false,
 }) => {
   const [input, setInput] = useState('')
   const [attachments, setAttachments] = useState<AttachmentWithPreview[]>([])
@@ -479,7 +481,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
         </div>
       </div>
 
-      {isStreaming ? (
+      {(isStreaming || isWaiting) && (
         <button
           className="btn-stop"
           onClick={onStop}
@@ -487,16 +489,16 @@ export const InputArea: React.FC<InputAreaProps> = ({
         >
           &#x25A0;
         </button>
-      ) : (
-        <button
-          className="btn-send"
-          onClick={handleSend}
-          disabled={!canSend}
-          title="发送消息"
-        >
-          &#x21B5;
-        </button>
       )}
+
+      <button
+        className="btn-send"
+        onClick={handleSend}
+        disabled={!canSend}
+        title="发送消息"
+      >
+        &#x21B5;
+      </button>
     </div>
   )
 }

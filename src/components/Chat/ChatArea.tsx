@@ -9,9 +9,9 @@ interface ChatAreaProps {
   disabled?: boolean
   gatewayState: string
   isWaiting?: boolean
-  gatewayPort?: number
-  onStop: () => void
   isStreaming?: boolean
+  onStop: () => void
+  gatewayPort?: number
 }
 
 export const ChatArea: React.FC<ChatAreaProps> = ({
@@ -20,9 +20,9 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   disabled = false,
   gatewayState,
   isWaiting = false,
-  gatewayPort = 39527,
-  onStop,
   isStreaming = false,
+  onStop,
+  gatewayPort = 39527,
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null)
   const scrollRafRef = useRef(0)
@@ -233,10 +233,11 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
       <InputArea
         onSend={onSend}
-        disabled={disabled || !isReady || isWaiting}
-        placeholder={!isReady ? '等待网关服务就绪...' : isWaiting ? 'AI 正在回复中...' : isStreaming ? '可输入下一条或点停止...' : '输入消息...'}
-        onStop={onStop}
+        disabled={disabled || !isReady}
+        placeholder={!isReady ? '等待网关服务就绪...' : isWaiting ? 'AI 正在思考，可继续输入...' : isStreaming ? 'AI 正在回复，可继续输入...' : '输入消息...'}
+        isWaiting={isWaiting}
         isStreaming={isStreaming}
+        onStop={onStop}
       />
     </div>
   )
