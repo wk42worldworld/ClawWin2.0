@@ -218,7 +218,8 @@ function scanDirectory(dir: string, source: 'bundled' | 'local' | 'workspace'): 
       const fm = parseFrontmatter(content)
       if (!fm.name) continue
 
-      const meta = (fm.metadata as Record<string, unknown>)?.openclaw as Record<string, unknown> | undefined
+      const rawMeta = fm.metadata as Record<string, unknown> | undefined
+      const meta = (rawMeta?.openclaw || rawMeta?.clawdbot) as Record<string, unknown> | undefined
 
       const skill: SkillInfo = {
         name: fm.name,
@@ -294,10 +295,15 @@ export function scanSkills(): SkillInfo[] {
   const entries = ((config.skills as Record<string, unknown>)?.entries as SkillsConfig) || {}
   const platform = os.platform() // 直接用 Node 的 platform 值: win32/darwin/linux
 
-  // 1. Bundled skills
+  // 1. Bundled skills (同时扫描 openclaw 和 openclaw-cn)
   const openclawPath = getOpenclawPath()
   const bundledDir = path.join(openclawPath, 'skills')
   const bundledSkills = scanDirectory(bundledDir, 'bundled')
+
+  // openclaw-cn 目录（中文定制技能）
+  const cnDir = openclawPath.replace(/openclaw$/, 'openclaw-cn')
+  const cnSkillsDir = path.join(cnDir, 'skills')
+  const cnSkills = cnDir !== openclawPath ? scanDirectory(cnSkillsDir, 'bundled') : []
 
   // 2. Local skills
   const localDir = path.join(os.homedir(), '.openclaw', 'skills')
@@ -311,7 +317,12 @@ export function scanSkills(): SkillInfo[] {
     workspaceSkills = scanDirectory(workspaceDir, 'workspace')
   }
 
-  const allSkills = [...bundledSkills, ...localSkills, ...workspaceSkills]
+  // 去重：local > workspace > openclaw-cn > openclaw，同名技能后者覆盖前者
+  const skillMap = new Map<string, SkillInfo>()
+  for (const s of [...bundledSkills, ...cnSkills, ...workspaceSkills, ...localSkills]) {
+    skillMap.set(s.name, s)
+  }
+  const allSkills = Array.from(skillMap.values())
 
   // 合并配置并计算状态
   for (const skill of allSkills) {

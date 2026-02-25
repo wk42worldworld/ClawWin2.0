@@ -3448,6 +3448,259 @@ body {
   flex-shrink: 0;
 }
 
+/* -- Skill Settings: Wide Panel -- */
+.settings-panel-skills {
+  width: 900px;
+  max-width: 95vw;
+  max-height: 85vh;
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(40px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-panel-skills .settings-body {
+  padding: 0;
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* -- Skill Tabs -- */
+.skill-tabs {
+  display: flex;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  padding: 3px;
+  margin: 0 auto;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.skill-tab {
+  padding: 6px 14px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.skill-tab:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.skill-tab.active {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 162, 224, 0.3);
+}
+
+.skill-tab-count {
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 1px 7px;
+  border-radius: 8px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.skill-tab.active .skill-tab-count {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* -- Skill Grid (3 columns) -- */
+.skill-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 4px 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* -- Skill Card (redesigned for grid) -- */
+.settings-panel-skills .skill-card {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  cursor: default;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.settings-panel-skills .skill-card:hover:not(.disabled) {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.settings-panel-skills .skill-card.skill-card-active {
+  border-color: var(--accent);
+  background: rgba(0, 162, 224, 0.06);
+  box-shadow: 0 0 0 1px rgba(0, 162, 224, 0.15);
+}
+
+.settings-panel-skills .skill-card.disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.settings-panel-skills .skill-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.settings-panel-skills .skill-icon {
+  font-size: 1.3rem;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+}
+
+.settings-panel-skills .skill-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.settings-panel-skills .skill-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.settings-panel-skills .skill-desc {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.75);
+  line-height: 1.45;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/* -- Card meta row (status badge + tags + toggle) -- */
+.skill-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* -- Skill Tags -- */
+.skill-tag {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: rgba(0, 162, 224, 0.1);
+  color: var(--accent);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.skill-tag-warn {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--warning);
+}
+
+/* -- Card actions (API key input + get key link) -- */
+.skill-card-actions {
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.skill-card-actions-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.skill-card-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.skill-card-actions-row .skill-apikey-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+}
+
+/* -- Get Key link -- */
+.skill-key-link {
+  font-size: 11px;
+  color: var(--accent);
+  white-space: nowrap;
+  text-decoration: none;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(0, 162, 224, 0.08);
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.skill-key-link:hover {
+  background: rgba(0, 162, 224, 0.18);
+  text-decoration: none;
+}
+
+/* -- Key tip in recommended tab -- */
+.skill-card-keytip {
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.skill-keytip-text {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.65);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+/* -- Responsive: 2 columns below 800px -- */
+@media (max-width: 800px) {
+  .skill-settings-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 /* ============================================
    Cron Manager
    ============================================ */
