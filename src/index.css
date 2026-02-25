@@ -1303,6 +1303,26 @@ body {
 .btn-send:active:not(:disabled) { transform: scale(0.9); filter: brightness(1.25); }
 .btn-send:disabled { opacity: 0.3; cursor: not-allowed; filter: grayscale(1); }
 
+.btn-stop {
+  width: 80px;
+  height: 64px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 20px 25px -5px rgba(239, 68, 68, 0.2);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+              background 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.btn-stop:hover { transform: scale(1.05); background: #dc2626; }
+.btn-stop:active { transform: scale(0.9); }
+
 /* ============================================
    Footer (64px bottom bar)
    ============================================ */
