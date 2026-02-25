@@ -104,6 +104,14 @@ function App() {
     enabled: gateway.state === 'ready',
   })
 
+  const handleStop = useCallback(() => {
+    const sid = activeSessionIdRef.current
+    if (sid) {
+      ws.abortSession(sid)
+    }
+    stopWaiting()
+  }, [ws, stopWaiting])
+
   // Load sessions from disk on mount
   useEffect(() => {
     window.electronAPI.sessions.load().then((loaded) => {
@@ -308,6 +316,11 @@ function App() {
           }
         })
       )
+
+      // 如果正在流式回复，先中断
+      if (ws.isStreaming && activeSessionId) {
+        ws.abortSession(activeSessionId)
+      }
 
       startWaiting()
       // 每个前端会话用自己的 id 作为 Gateway sessionKey
@@ -582,6 +595,8 @@ function App() {
               gatewayState={gateway.state}
               isWaiting={isWaiting}
               gatewayPort={gateway.port}
+              onStop={handleStop}
+              isStreaming={ws.isStreaming}
             />
           </div>
         </div>
