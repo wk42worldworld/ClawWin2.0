@@ -35,6 +35,8 @@ interface InputAreaProps {
   placeholder?: string
   externalAttachment?: AttachmentWithPreview | null
   onExternalAttachmentConsumed?: () => void
+  onStop?: () => void
+  isStreaming?: boolean
 }
 
 export const InputArea: React.FC<InputAreaProps> = ({
@@ -43,6 +45,8 @@ export const InputArea: React.FC<InputAreaProps> = ({
   placeholder = '输入消息...',
   externalAttachment,
   onExternalAttachmentConsumed,
+  onStop,
+  isStreaming = false,
 }) => {
   const [input, setInput] = useState('')
   const [attachments, setAttachments] = useState<AttachmentWithPreview[]>([])
@@ -210,10 +214,12 @@ export const InputArea: React.FC<InputAreaProps> = ({
     (e: React.KeyboardEvent) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault()
-        handleSend()
+        if (!isStreaming) {
+          handleSend()
+        }
       }
     },
-    [handleSend]
+    [handleSend, isStreaming]
   )
 
   const handleInput = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -473,14 +479,24 @@ export const InputArea: React.FC<InputAreaProps> = ({
         </div>
       </div>
 
-      <button
-        className="btn-send"
-        onClick={handleSend}
-        disabled={!canSend}
-        title="发送消息"
-      >
-        &#x21B5;
-      </button>
+      {isStreaming ? (
+        <button
+          className="btn-stop"
+          onClick={onStop}
+          title="停止回复"
+        >
+          &#x25A0;
+        </button>
+      ) : (
+        <button
+          className="btn-send"
+          onClick={handleSend}
+          disabled={!canSend}
+          title="发送消息"
+        >
+          &#x21B5;
+        </button>
+      )}
     </div>
   )
 }
