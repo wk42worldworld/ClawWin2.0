@@ -170,7 +170,9 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             </div>
           ) : (
             <>
-              {messages.map((msg) => (
+              {messages
+                .filter((msg) => msg.content || msg.status === 'streaming' || msg.status === 'queued' || msg.status === 'error' || msg.attachments?.length)
+                .map((msg) => (
                 <MessageBubble
                   key={msg.id}
                   message={msg}

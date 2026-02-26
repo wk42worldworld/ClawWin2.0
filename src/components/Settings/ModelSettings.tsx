@@ -77,7 +77,7 @@ export const ModelSettings: React.FC<ModelSettingsProps> = ({
 
   // Load current API key when provider changes
   useEffect(() => {
-    if (!selectedProvider || selectedProvider === 'custom') return
+    if (!selectedProvider) return
     let cancelled = false
 
     window.electronAPI.config
@@ -95,6 +95,35 @@ export const ModelSettings: React.FC<ModelSettingsProps> = ({
       cancelled = true
     }
   }, [selectedProvider])
+
+  // 回填自定义模型配置
+  useEffect(() => {
+    if (currentProvider !== 'custom') return
+    let cancelled = false
+
+    window.electronAPI.config.readConfig().then((config) => {
+      if (cancelled || !config) return
+      const models = (config as Record<string, unknown>).models as Record<string, unknown> | undefined
+      const providers = models?.providers as Record<string, Record<string, unknown>> | undefined
+      const customProvider = providers?.custom
+      if (!customProvider) return
+
+      setIsCustom(true)
+      setSelectedProvider('custom')
+      if (customProvider.baseUrl) setCustomUrl(customProvider.baseUrl as string)
+      if (customProvider.api) setCustomFormat(customProvider.api as string)
+
+      const modelList = customProvider.models as Array<{ id?: string; name?: string }> | undefined
+      const model = modelList?.[0]
+      if (model) {
+        setCustomModelId(model.id ?? '')
+        setCustomModelName(model.name ?? '')
+        setSelectedModel(model.id ?? '')
+      }
+    }).catch(() => {})
+
+    return () => { cancelled = true }
+  }, [currentProvider])
 
   const getProviderById = useCallback(
     (id: string): ModelProvider | undefined => {

@@ -62,6 +62,10 @@ function App() {
   const activeSessionIdRef = useRef<string | null>(null)
   activeSessionIdRef.current = activeSessionId
 
+  // 使用 ref 追踪 isWaiting 实时值，避免 handleSend 闭包捕获旧值
+  const isWaitingRef = useRef(false)
+  isWaitingRef.current = isWaiting
+
   // 根据用户配置的超时时间自动取消等待并提示错误
   const startWaiting = useCallback(() => {
     setIsWaiting(true)
@@ -298,7 +302,7 @@ function App() {
         return
       }
 
-      const isAiBusy = isWaiting || ws.isStreaming
+      const isAiBusy = isWaitingRef.current || ws.isStreaming
 
       const userMsg: ChatMessage = {
         id: generateId(),
@@ -330,7 +334,7 @@ function App() {
       // 发送消息到后端，后端队列会自动处理（collect 模式）
       ws.sendMessage(activeSessionId, content, attachments)
     },
-    [activeSessionId, ws, startWaiting, isWaiting]
+    [activeSessionId, ws, startWaiting]
   )
 
   // Setup wizard handlers
@@ -778,6 +782,25 @@ function App() {
           currentModel={setup.config.modelId}
           onClose={() => setShowModelSettings(false)}
           onSaved={() => {
+            setShowModelSettings(false)
+            // 重新读取配置以更新前端状态（当前模型显示等）
+            window.electronAPI.config.readConfig().then((savedConfig) => {
+              if (savedConfig) {
+                const agents = (savedConfig as Record<string, unknown>).agents as Record<string, unknown> | undefined
+                const defaults = agents?.defaults as Record<string, unknown> | undefined
+                const modelCfg = defaults?.model as Record<string, unknown> | undefined
+                const primary = modelCfg?.primary as string | undefined
+                if (primary?.includes('/')) {
+                  const idx = primary.indexOf('/')
+                  const modelsMap = defaults?.models as Record<string, { alias?: string }> | undefined
+                  setup.updateConfig({
+                    provider: primary.slice(0, idx),
+                    modelId: primary.slice(idx + 1),
+                    modelName: modelsMap?.[primary]?.alias || primary.slice(idx + 1),
+                  })
+                }
+              }
+            }).catch(() => {})
             gateway.restart().catch((err) => console.error('gateway restart failed:', err))
           }}
         />

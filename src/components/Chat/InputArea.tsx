@@ -216,12 +216,10 @@ export const InputArea: React.FC<InputAreaProps> = ({
     (e: React.KeyboardEvent) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault()
-        if (!isStreaming) {
-          handleSend()
-        }
+        handleSend()
       }
     },
-    [handleSend, isStreaming]
+    [handleSend]
   )
 
   const handleInput = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {

@@ -86,6 +86,7 @@ export function useWebSocket({ url, token, enabled }: UseWebSocketOptions): UseW
       onClose: (info) => {
         console.log('[ws] connection closed:', info.code, info.reason)
         setConnected(false)
+        setIsStreaming(false)
       },
       onError: (err) => {
         console.error('[ws] error:', err.message)
@@ -137,6 +138,10 @@ export function useWebSocket({ url, token, enabled }: UseWebSocketOptions): UseW
       const bufferedText = streamBufferRef.current.get(runId)
       const text = extractedText || bufferedText || ''
       streamBufferRef.current.delete(runId)
+      setIsStreaming(false)
+
+      // 空内容不创建消息，避免空白气泡
+      if (!text) return
 
       const msg: ChatMessage = {
         id: runId,
@@ -145,7 +150,6 @@ export function useWebSocket({ url, token, enabled }: UseWebSocketOptions): UseW
         timestamp: Date.now(),
         status: 'done',
       }
-      setIsStreaming(false)
       onMessageStream.current?.(msg)
     } else if (state === 'error') {
       const errorMessage = (payload.errorMessage as string) || '发生错误'
