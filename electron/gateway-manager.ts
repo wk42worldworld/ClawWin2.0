@@ -24,8 +24,11 @@ export class GatewayManager {
   private readonly HEALTH_CHECK_INTERVAL = 5000
   private readonly SHUTDOWN_TIMEOUT = 5000
   private stopping = false
-  private externalGateway = false // 是否使用外部已运行的 Gateway
-  private isRestarting = false // restart() 调用的 start，用较短的健康检查延迟
+  private externalGateway = false
+  private isRestarting = false
+
+  // 操作锁：所有生命周期操作串行执行，杜绝并发启动
+  private opLock: Promise<void> = Promise.resolve()
 
   constructor(private opts: GatewayManagerOptions) {}
 
@@ -40,8 +43,40 @@ export class GatewayManager {
     return this.opts.port
   }
 
+  // ========== 公开方法（通过锁串行化） ==========
+
   async start(): Promise<void> {
-    if (this.state === 'ready' || this.state === 'starting') {
+    return this.serialize(() => this.doStart())
+  }
+
+  async stop(): Promise<void> {
+    return this.serialize(() => this.doStop())
+  }
+
+  async restart(): Promise<void> {
+    return this.serialize(async () => {
+      this.setState('restarting')
+      this.log('info', '正在重启 Gateway...')
+      this.isRestarting = true
+      await this.doStop()
+      await this.doStart()
+      this.isRestarting = false
+    })
+  }
+
+  // ========== 内部实现 ==========
+
+  /**
+   * 串行化：所有操作排队执行，前一个完成后才执行下一个
+   */
+  private serialize(fn: () => Promise<void>): Promise<void> {
+    const op = this.opLock.then(fn, fn)
+    this.opLock = op.catch(() => {})
+    return op
+  }
+
+  private async doStart(): Promise<void> {
+    if (this.state === 'ready' || this.state === 'starting' || this.state === 'restarting') {
       return
     }
 
@@ -58,10 +93,17 @@ export class GatewayManager {
       await new Promise(resolve => setTimeout(resolve, 1500))
       const stillInUse = await this.isPortInUse(this.opts.port)
       if (stillInUse) {
-        this.log('warn', `端口 ${this.opts.port} 仍被占用，尝试连接已有 Gateway`)
-        this.externalGateway = true
-        this.setState('ready')
-        this.startHealthCheck()
+        // 先验证是否是真正的 Gateway，再决定复用还是报错
+        const isGateway = await this.isRealGateway(this.opts.port)
+        if (isGateway) {
+          this.log('info', `端口 ${this.opts.port} 上运行着可用的 Gateway，直接复用`)
+          this.externalGateway = true
+          this.setState('ready')
+          this.startHealthCheck()
+        } else {
+          this.log('error', `端口 ${this.opts.port} 被其他程序占用，无法启动 Gateway`)
+          this.setState('error')
+        }
         return
       }
     }
@@ -79,7 +121,7 @@ export class GatewayManager {
     }
   }
 
-  async stop(): Promise<void> {
+  private async doStop(): Promise<void> {
     this.stopping = true
     this.stopHealthCheck()
 
@@ -133,15 +175,6 @@ export class GatewayManager {
     })
   }
 
-  async restart(): Promise<void> {
-    this.setState('restarting')
-    this.log('info', '正在重启 Gateway...')
-    await this.stop()
-    this.isRestarting = true
-    await this.start()
-    this.isRestarting = false
-  }
-
   private setState(state: GatewayState) {
     this.state = state
     this.opts.onStateChange(state)
@@ -152,19 +185,15 @@ export class GatewayManager {
   }
 
   /**
-   * 检测端口是否已被真正的 Gateway 占用
-   * 不仅检查 TCP 连接，还尝试 HTTP 请求验证是 Gateway
+   * 检测端口是否已被占用（TCP 层面）
    */
   private isPortInUse(port: number): Promise<boolean> {
     return new Promise((resolve) => {
-      // 先做 TCP 连接检测
       const socket = new net.Socket()
       socket.setTimeout(2000)
       socket.once('connect', () => {
         socket.destroy()
-        // TCP 连通了，但可能是其他程序（如 svchost.exe）
-        // 尝试 HTTP 请求验证是否是 Gateway
-        this.isRealGateway(port).then(resolve)
+        resolve(true)
       })
       socket.once('timeout', () => {
         socket.destroy()
@@ -184,9 +213,7 @@ export class GatewayManager {
   private isRealGateway(port: number): Promise<boolean> {
     return new Promise((resolve) => {
       const req = http.get(`http://127.0.0.1:${port}/health`, { timeout: 3000 }, (res) => {
-        // 任何 HTTP 响应都说明是一个 HTTP 服务器（可能是 Gateway）
-        // Gateway 通常返回 200
-        res.resume() // consume response body
+        res.resume()
         resolve(res.statusCode === 200)
       })
       req.on('timeout', () => {
@@ -194,7 +221,6 @@ export class GatewayManager {
         resolve(false)
       })
       req.on('error', () => {
-        // 不是 HTTP 服务器，不是 Gateway
         resolve(false)
       })
     })
@@ -217,6 +243,13 @@ export class GatewayManager {
   }
 
   private async spawnGateway(): Promise<void> {
+    // 防止进程泄露：如果有残留进程先终止
+    if (this.process) {
+      this.log('warn', '检测到残留进程，先终止')
+      try { this.process.kill() } catch { /* ignore */ }
+      this.process = null
+    }
+
     const entryScript = this.findEntryScript()
     const token = this.readGatewayToken()
 
@@ -358,7 +391,6 @@ export class GatewayManager {
   private onHealthCheckFailed(reason: string) {
     this.consecutiveFailures++
 
-    // 外部 Gateway 不需要频繁报日志
     if (this.consecutiveFailures <= 2 || this.consecutiveFailures % 5 === 0) {
       this.log('warn', `健康检查失败 (${this.consecutiveFailures}/${this.MAX_FAILURES}): ${reason}`)
     }
@@ -369,6 +401,7 @@ export class GatewayManager {
         this.setState('error')
       } else {
         this.log('error', '连续健康检查失败，自动重启 Gateway...')
+        // 通过 serialize 排队，不会与其他操作并发
         this.restart()
       }
     }

@@ -76,8 +76,8 @@ export function UpdateNotification({ info, onClose, onBackground, initialStage }
       await window.electronAPI.app.downloadUpdate()
       setStage('done')
     } catch (err) {
-      const msg = err instanceof Error ? err.message : '下载失败'
-      if (msg === '下载已取消') {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (msg.includes('下载已取消')) {
         onClose()
         return
       }

@@ -2,18 +2,21 @@ import https from 'node:https'
 import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
+import os from 'node:os'
 import { app } from 'electron'
 import { spawn } from 'node:child_process'
 
 const REPO = 'wk42worldworld/ClawWin2.0'
+const GITHUB_API = `https://api.github.com/repos/${REPO}/releases/latest`
 const MAX_REDIRECTS = 5
+const CONNECT_TIMEOUT = 10_000
+const DATA_TIMEOUT = 30_000
 
-// 镜像优先，直连 fallback
-const API_URLS = [
-  `https://mirror.ghproxy.com/https://api.github.com/repos/${REPO}/releases/latest`,
-  `https://ghgo.xyz/https://api.github.com/repos/${REPO}/releases/latest`,
-  `https://gh.llkk.cc/https://api.github.com/repos/${REPO}/releases/latest`,
-  `https://api.github.com/repos/${REPO}/releases/latest`,
+// 内置 GitHub 镜像前缀
+const BUILTIN_MIRRORS = [
+  'https://mirror.ghproxy.com/',
+  'https://ghgo.xyz/',
+  'https://gh.llkk.cc/',
 ]
 
 export interface UpdateInfo {
@@ -29,6 +32,15 @@ export interface DownloadProgress {
   totalBytes: number
 }
 
+// ========== 状态 ==========
+
+let cancelled = false
+let activeReq: http.ClientRequest | null = null
+// 竞速模式下所有进行中的请求，用于取消
+let racingReqs: http.ClientRequest[] = []
+
+// ========== 工具函数 ==========
+
 /** 比较 semver：a > b 返回 true */
 function isNewer(remote: string, local: string): boolean {
   const parse = (v: string) => v.replace(/^v/, '').split('.').map(Number)
@@ -41,175 +53,232 @@ function isNewer(remote: string, local: string): boolean {
   return false
 }
 
-/** HTTPS GET，返回 response body string，支持重定向（有深度限制） */
-function fetchUrl(url: string, timeout = 10000, redirects = MAX_REDIRECTS): Promise<string> {
-  return new Promise((resolve, reject) => {
-    if (redirects <= 0) { reject(new Error('Too many redirects')); return }
-    const mod = url.startsWith('https') ? https : http
-    const req = mod.get(url, { headers: { 'User-Agent': 'ClawWin-Updater' }, timeout }, (res) => {
-      if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
-        fetchUrl(res.headers.location, timeout, redirects - 1).then(resolve, reject)
-        return
-      }
-      if (res.statusCode !== 200) {
-        reject(new Error(`HTTP ${res.statusCode}`))
-        return
-      }
-      let data = ''
-      res.on('data', (chunk) => { data += chunk })
-      res.on('end', () => resolve(data))
-      res.on('error', reject)
-    })
-    req.on('timeout', () => { req.destroy(); reject(new Error('timeout')) })
-    req.on('error', reject)
-  })
+/** 读取用户配置的自定义镜像地址 */
+function getCustomMirror(): string | null {
+  try {
+    const cfgPath = path.join(os.homedir(), '.openclaw', 'clawwin-ui.json')
+    const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf-8'))
+    const url = cfg.updateMirrorUrl
+    return typeof url === 'string' && url.trim() ? url.trim() : null
+  } catch { return null }
 }
 
-/** 检查更新：按镜像列表顺序尝试，返回 UpdateInfo 或 null */
-export async function checkForUpdate(): Promise<UpdateInfo | null> {
-  const currentVersion = app.getVersion()
-  console.log('[update-checker] current version:', currentVersion)
+/** 构建镜像 URL 列表：自定义镜像 > 内置镜像 > 直连 */
+function buildMirrorUrls(directUrl: string): string[] {
+  const urls: string[] = []
+  const custom = getCustomMirror()
 
-  for (const apiUrl of API_URLS) {
-    try {
-      console.log('[update-checker] trying:', apiUrl)
-      const body = await fetchUrl(apiUrl, 5000)
-      const release = JSON.parse(body)
-      const tag: string = release.tag_name ?? ''
-      console.log('[update-checker] latest release:', tag)
-      if (!tag || !isNewer(tag, currentVersion)) return null
+  if (custom) {
+    const prefix = custom.endsWith('/') ? custom : custom + '/'
+    urls.push(prefix + directUrl)
+  }
 
-      // 找 .exe 安装包资源
-      const asset = (release.assets ?? []).find((a: { name: string }) =>
-        a.name.endsWith('.exe')
-      )
-      // 没有 .exe 资源则不提示更新
-      if (!asset?.browser_download_url) return null
-
-      // 安全处理 fileName，防止路径遍历
-      const safeName = path.basename(asset.name)
-      if (!safeName.endsWith('.exe')) return null
-
-      return {
-        version: tag.replace(/^v/, ''),
-        releaseNotes: release.body ?? '',
-        downloadUrl: asset.browser_download_url,
-        fileName: safeName,
-      }
-    } catch (err) {
-      console.log('[update-checker] failed for', apiUrl, err)
-      continue
+  if (directUrl.includes('github.com') || directUrl.includes('api.github.com')) {
+    for (const mirror of BUILTIN_MIRRORS) {
+      urls.push(mirror + directUrl)
     }
   }
-  return null
-}
 
-/** 为下载 URL 生成候选列表：直连优先，镜像兜底 */
-function getMirrorUrls(originalUrl: string): string[] {
-  const urls = [originalUrl]
-  if (originalUrl.includes('github.com')) {
-    // 国内 GitHub 加速镜像作为兜底（直连超时 5 秒后自动切换）
-    urls.push(
-      originalUrl.replace('https://github.com/', 'https://mirror.ghproxy.com/https://github.com/'),
-      `https://ghgo.xyz/${originalUrl}`,
-      originalUrl.replace('https://github.com/', 'https://gh.llkk.cc/https://github.com/'),
-    )
-  }
+  urls.push(directUrl)
   return urls
 }
 
-// 当前下载的 abort controller
-let currentDownloadReq: http.ClientRequest | null = null
+/**
+ * HTTP GET，内部跟随重定向，返回最终 response
+ * 返回 { res, req } 以便调用方管理请求生命周期
+ */
+function httpGet(
+  url: string,
+  headers: Record<string, string> = {},
+  timeout = CONNECT_TIMEOUT,
+): Promise<{ res: http.IncomingMessage; req: http.ClientRequest }> {
+  return new Promise((resolve, reject) => {
+    let redirects = MAX_REDIRECTS
+    let timer: ReturnType<typeof setTimeout>
+    let currentReq: http.ClientRequest
 
-/** 取消正在进行的下载 */
-export function cancelDownload(): void {
-  if (currentDownloadReq) {
-    currentDownloadReq.destroy()
-    currentDownloadReq = null
+    function request(targetUrl: string) {
+      if (cancelled) { reject(new Error('下载已取消')); return }
+      const mod = targetUrl.startsWith('https') ? https : http
+      const req = mod.get(targetUrl, {
+        headers: { 'User-Agent': 'ClawWin-Updater', ...headers },
+      }, (res) => {
+        clearTimeout(timer)
+
+        if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
+          res.resume()
+          if (--redirects <= 0) { reject(new Error('重定向次数过多')); return }
+          request(res.headers.location)
+          return
+        }
+
+        if (res.statusCode !== 200 && res.statusCode !== 206) {
+          res.resume()
+          reject(new Error(`HTTP ${res.statusCode}`))
+          return
+        }
+
+        resolve({ res, req: currentReq })
+      })
+
+      currentReq = req
+      req.on('error', (err) => { clearTimeout(timer); reject(err) })
+      timer = setTimeout(() => { req.destroy(); reject(new Error('连接超时')) }, timeout)
+    }
+
+    request(url)
+  })
+}
+
+/** 从 URL 获取文本内容 */
+async function fetchText(url: string, timeout = 5000): Promise<string> {
+  const { res } = await httpGet(url, {}, timeout)
+  return new Promise((resolve, reject) => {
+    let data = ''
+    res.on('data', (chunk) => { data += chunk })
+    res.on('end', () => resolve(data))
+    res.on('error', reject)
+  })
+}
+
+// ========== 公开 API ==========
+
+/** 检查更新：所有镜像并行竞速，最快响应的胜出 */
+export async function checkForUpdate(): Promise<UpdateInfo | null> {
+  const currentVersion = app.getVersion()
+  console.log('[update] current version:', currentVersion)
+
+  const apiUrls = buildMirrorUrls(GITHUB_API)
+  const body = await raceForText(apiUrls)
+
+  const release = JSON.parse(body)
+  const tag: string = release.tag_name ?? ''
+  console.log('[update] latest release:', tag)
+  if (!tag || !isNewer(tag, currentVersion)) return null
+
+  const asset = (release.assets ?? []).find((a: { name: string }) =>
+    a.name.endsWith('.exe')
+  )
+  if (!asset?.browser_download_url) return null
+
+  const safeName = path.basename(asset.name)
+  if (!safeName.endsWith('.exe')) return null
+
+  return {
+    version: tag.replace(/^v/, ''),
+    releaseNotes: release.body ?? '',
+    downloadUrl: asset.browser_download_url,
+    fileName: safeName,
   }
 }
 
-/** 下载文件到 temp 目录，支持进度回调 */
-export function downloadUpdate(
+/**
+ * 下载更新：所有镜像并行竞速连接，最快响应的下载
+ * 支持断点续传，支持取消
+ */
+export async function downloadUpdate(
   downloadUrl: string,
   fileName: string,
   onProgress: (progress: DownloadProgress) => void,
 ): Promise<string> {
-  const destPath = path.join(app.getPath('temp'), fileName)
-  const urls = getMirrorUrls(downloadUrl)
-  return tryDownload(urls, 0, destPath, onProgress, MAX_REDIRECTS)
-}
+  cancelled = false
+  activeReq = null
 
-function tryDownload(
-  urls: string[],
-  index: number,
-  destPath: string,
-  onProgress: (progress: DownloadProgress) => void,
-  redirectsLeft: number,
-): Promise<string> {
-  if (index >= urls.length) {
-    return Promise.reject(new Error('无法连接到更新服务器，请检查网络连接'))
+  const destPath = path.join(app.getPath('temp'), fileName)
+  const urls = buildMirrorUrls(downloadUrl)
+
+  // 断点续传：读取已下载的字节数
+  let existingBytes = 0
+  try { existingBytes = fs.statSync(destPath).size } catch { /* 文件不存在 */ }
+
+  let headers: Record<string, string> = {}
+  if (existingBytes > 0) {
+    headers['Range'] = `bytes=${existingBytes}-`
+    console.log('[update] resuming from byte', existingBytes)
   }
 
-  const url = urls[index]
-  return new Promise<string>((resolve, reject) => {
-    const mod = url.startsWith('https') ? https : http
-    // 不使用 http timeout 选项（socket 级超时），改用手动连接计时器，
-    // 避免 302 重定向后原始 socket 空闲触发 timeout 导致误报"连接超时"
-    const req = mod.get(url, { headers: { 'User-Agent': 'ClawWin-Updater' } }, (res) => {
-      // 收到响应（含 302），立即清除连接超时
-      clearTimeout(connectTimer)
-
-      // 跟随重定向（有深度限制）
-      if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
-        if (redirectsLeft <= 0) { reject(new Error('Too many redirects')); return }
-        tryDownload([res.headers.location, ...urls.slice(index + 1)], 0, destPath, onProgress, redirectsLeft - 1)
-          .then(resolve, reject)
-        return
-      }
-      if (res.statusCode !== 200) {
-        reject(new Error(`HTTP ${res.statusCode}`))
-        return
-      }
-
-      const totalBytes = parseInt(res.headers['content-length'] ?? '0', 10)
-      let transferredBytes = 0
-      const file = fs.createWriteStream(destPath)
-
-      // 数据传输超时：15 秒无数据则中断，快速回退到下一个源
-      let dataTimer = setTimeout(() => { req.destroy(); reject(new Error('下载超时')) }, 15000)
-
-      res.on('data', (chunk: Buffer) => {
-        clearTimeout(dataTimer)
-        dataTimer = setTimeout(() => { req.destroy(); reject(new Error('下载超时')) }, 15000)
-        transferredBytes += chunk.length
-        const percent = totalBytes > 0 ? Math.round((transferredBytes / totalBytes) * 100) : 0
-        onProgress({ percent, transferredBytes, totalBytes })
-      })
-      res.pipe(file)
-      file.on('finish', () => {
-        clearTimeout(dataTimer)
-        file.close()
-        currentDownloadReq = null
-        resolve(destPath)
-      })
-      file.on('error', (err) => { clearTimeout(dataTimer); fs.unlink(destPath, () => {}); reject(err) })
-      res.on('error', (err) => { clearTimeout(dataTimer); fs.unlink(destPath, () => {}); reject(err) })
-    })
-    // 连接超时：5 秒内未收到任何响应则中断
-    const connectTimer = setTimeout(() => { req.destroy(); reject(new Error('连接超时')) }, 5000)
-    req.on('error', (err) => { clearTimeout(connectTimer); reject(err) })
-    currentDownloadReq = req
-  }).catch((err) => {
-    // 如果是用户主动取消，不再尝试下一个源
-    if (currentDownloadReq === null) return Promise.reject(new Error('下载已取消'))
-    currentDownloadReq = null
-    // 尝试下一个源
-    if (index + 1 < urls.length) {
-      return tryDownload(urls, index + 1, destPath, onProgress, redirectsLeft)
+  // 并行竞速：所有 URL 同时连接，第一个成功响应的胜出
+  let res: http.IncomingMessage, req: http.ClientRequest, url: string
+  try {
+    ({ res, req, url } = await raceForResponse(urls, headers))
+  } catch (err) {
+    // Range 请求全部失败（416 或服务器不支持），删除临时文件从头下载
+    if (existingBytes > 0) {
+      console.log('[update] range request failed, retrying from scratch')
+      try { fs.unlinkSync(destPath) } catch { /* ignore */ }
+      existingBytes = 0
+      headers = {}
+      ;({ res, req, url } = await raceForResponse(urls, headers))
+    } else {
+      throw err
     }
-    return Promise.reject(err)
+  }
+  activeReq = req
+  console.log('[update] winner:', url)
+
+  // 服务器返回 206 = 支持续传，200 = 不支持，从头开始
+  const isResume = res.statusCode === 206
+  if (!isResume) existingBytes = 0
+
+  const contentLength = parseInt(res.headers['content-length'] ?? '0', 10)
+  const totalBytes = existingBytes + contentLength
+  let transferredBytes = existingBytes
+
+  await new Promise<void>((resolve, reject) => {
+    let settled = false
+    const done = (err?: Error) => {
+      if (settled) return
+      settled = true
+      clearTimeout(dataTimer)
+      if (err) {
+        file.destroy()
+        reject(err)
+      } else {
+        file.close(() => resolve())
+      }
+    }
+
+    const file = fs.createWriteStream(destPath, isResume ? { flags: 'a' } : {})
+
+    let dataTimer = setTimeout(() => {
+      activeReq?.destroy()
+      done(new Error('下载超时'))
+    }, DATA_TIMEOUT)
+
+    res.on('data', (chunk: Buffer) => {
+      clearTimeout(dataTimer)
+      dataTimer = setTimeout(() => {
+        activeReq?.destroy()
+        done(new Error('下载超时'))
+      }, DATA_TIMEOUT)
+
+      transferredBytes += chunk.length
+      onProgress({
+        percent: totalBytes > 0 ? Math.round((transferredBytes / totalBytes) * 100) : 0,
+        transferredBytes,
+        totalBytes,
+      })
+    })
+
+    res.pipe(file)
+    file.on('finish', () => done())
+    file.on('error', (err) => done(err))
+    res.on('error', (err) => done(err))
   })
+
+  return destPath
+}
+
+/** 取消正在进行的下载 */
+export function cancelDownload(): void {
+  cancelled = true
+  activeReq?.destroy()
+  activeReq = null
+  // 取消所有竞速中的请求
+  for (const req of racingReqs) {
+    try { req.destroy() } catch { /* ignore */ }
+  }
+  racingReqs = []
 }
 
 /** 启动安装程序并退出应用 */
@@ -219,4 +288,90 @@ export function installUpdate(filePath: string): void {
   }
   spawn(filePath, [], { detached: true, stdio: 'ignore' }).unref()
   app.quit()
+}
+
+// ========== 并行竞速 ==========
+
+/**
+ * 并行竞速获取文本：所有 URL 同时请求，第一个成功返回内容的胜出
+ */
+function raceForText(urls: string[], timeout = 5000): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let settled = false
+    let failures = 0
+    const reqs: http.ClientRequest[] = []
+
+    for (const url of urls) {
+      console.log('[update] checking:', url)
+      httpGet(url, {}, timeout).then(({ res, req }) => {
+        reqs.push(req)
+        if (settled) { res.resume(); return }
+
+        // 读取 body
+        let data = ''
+        res.on('data', (chunk) => { data += chunk })
+        res.on('end', () => {
+          if (settled) return
+          settled = true
+          console.log('[update] check winner:', url)
+          // 取消其余请求
+          for (const r of reqs) { try { r.destroy() } catch {} }
+          resolve(data)
+        })
+        res.on('error', () => {
+          failures++
+          if (!settled && failures >= urls.length) {
+            reject(new Error('所有更新源均不可用'))
+          }
+        })
+      }).catch(() => {
+        failures++
+        if (!settled && failures >= urls.length) {
+          reject(new Error('所有更新源均不可用'))
+        }
+      })
+    }
+  })
+}
+
+/**
+ * 并行竞速连接：所有 URL 同时发起请求，第一个返回有效响应头的胜出
+ * 其余请求立即取消，仅用胜出的连接进行下载
+ */
+function raceForResponse(
+  urls: string[],
+  headers: Record<string, string> = {},
+): Promise<{ res: http.IncomingMessage; req: http.ClientRequest; url: string }> {
+  return new Promise((resolve, reject) => {
+    if (cancelled) { reject(new Error('下载已取消')); return }
+
+    let settled = false
+    let failures = 0
+    racingReqs = []
+
+    for (const url of urls) {
+      console.log('[update] racing:', url)
+      httpGet(url, headers).then(({ res, req }) => {
+        if (settled) {
+          // 已有赢家，销毁这个迟到的连接
+          res.resume()
+          req.destroy()
+          return
+        }
+        settled = true
+        // 从竞速列表中移除赢家，销毁其余
+        racingReqs = racingReqs.filter(r => r !== req)
+        for (const r of racingReqs) { try { r.destroy() } catch {} }
+        racingReqs = []
+        resolve({ res, req, url })
+      }).catch((err) => {
+        failures++
+        console.log('[update] race failed:', url, err instanceof Error ? err.message : err)
+        if (!settled && failures >= urls.length) {
+          racingReqs = []
+          reject(new Error('所有下载源均失败，请检查网络连接'))
+        }
+      })
+    }
+  })
 }
