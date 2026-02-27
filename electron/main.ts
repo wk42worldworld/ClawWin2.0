@@ -10,6 +10,7 @@ import { scanSkills, getSkillsConfig, saveSkillsConfig } from './skills-scanner'
 import { OllamaManager } from './ollama-manager'
 import { checkForUpdate, downloadUpdate, installUpdate, cancelDownload, type UpdateInfo } from './update-checker'
 import { listAllChannelPairings, approvePairingCode, getEnabledChannels } from './pairing-manager'
+import { generateClaudeMd } from './claude-md-generator'
 
 // 防止 stdout/stderr EPIPE 导致未捕获异常（Windows 打包 GUI 应用无控制台）
 for (const stream of [process.stdout, process.stderr]) {
@@ -211,7 +212,11 @@ function setupIPC() {
 
   // Save config from setup wizard
   ipcMain.handle('setup:saveConfig', (_event, config: Record<string, unknown>) => {
-    return writeSetupConfig(config)
+    const result = writeSetupConfig(config)
+    if (result.ok) {
+      try { generateClaudeMd() } catch { /* non-fatal */ }
+    }
+    return result
   })
 
   // Validate API key
@@ -929,6 +934,11 @@ app.whenReady().then(async () => {
 
   // Auto-start gateway if not first run (before creating window so state is ready)
   if (!isFirstRun()) {
+    // 自动生成 CLAUDE.md 环境信息
+    try { generateClaudeMd() } catch (err) {
+      console.error('[claude-md] generation failed:', err)
+    }
+
     gatewayManager?.start()
 
     // 如果配置的是本地模型（Ollama），自动启动 Ollama 服务

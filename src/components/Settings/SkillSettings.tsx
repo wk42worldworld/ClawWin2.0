@@ -12,6 +12,8 @@ const RECOMMENDED_SKILLS = [
   '天气查询', '新闻资讯', '百度搜索', '高德地图',
   '邮件管理', '图片分析', 'AI 图片生成', '网页设计部署',
   'GitHub', '编程代理', 'windows-control',
+  '内容摘要', 'find-skills', 'tavily',
+  'Self-Improving Agent (With Self-Reflection)',
 ]
 
 const KEY_URLS: Record<string, string> = {
@@ -23,6 +25,7 @@ const KEY_URLS: Record<string, string> = {
   'NOTION_API_KEY': 'https://www.notion.so/my-integrations',
   'GOOGLE_PLACES_API_KEY': 'https://console.cloud.google.com/',
   'EMAIL_PASS': 'https://service.mail.qq.com/detail/0/75',
+  'TAVILY_API_KEY': 'https://tavily.com/',
 }
 
 const KEY_TIPS: Record<string, string> = {
@@ -32,6 +35,7 @@ const KEY_TIPS: Record<string, string> = {
   'IMAGE_GEN_API_KEY': '前往智谱开放平台获取 API Key',
   'CLOUDFLARE_API_TOKEN': '前往 Cloudflare 创建 Pages Edit 权限的 Token',
   'EMAIL_PASS': 'QQ邮箱需开启SMTP并获取授权码，163邮箱需开启IMAP',
+  'TAVILY_API_KEY': '前往 Tavily 官网注册获取 API Key（免费额度可用）',
 }
 
 const TABS: { key: TabKey; label: string }[] = [

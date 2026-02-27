@@ -58,4 +58,7 @@ export const SKILL_CN: Record<string, string> = {
   '网页设计部署': 'HTML网页生成与Cloudflare部署',
   '本地地点': '本地地点搜索',
   'windows-control': 'Windows桌面控制与浏览器自动化',
+  'Self-Improving Agent (With Self-Reflection)': '自我反思与纠错，持续学习改进',
+  'find-skills': '搜索发现并安装新技能',
+  'tavily': 'AI优化的网页搜索（Tavily API）',
 }
