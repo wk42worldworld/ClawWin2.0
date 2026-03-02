@@ -484,13 +484,13 @@ function App() {
               onNext={(token) => {
                 setup.updateConfig({
                   provider: 'clawwinweb',
-                  modelId: 'gpt-5.2',
-                  modelName: 'GPT-5.2',
+                  modelId: 'gemini-2.5-flash',
+                  modelName: 'Gemini 2.5 Flash',
                   baseUrl: 'https://www.mybotworld.com/api/v1',
                   apiFormat: 'openai-completions',
                   apiKey: token,
-                  reasoning: false,
-                  contextWindow: 128000,
+                  reasoning: true,
+                  contextWindow: 1048576,
                 })
                 setup.setStep('workspace')
               }}
