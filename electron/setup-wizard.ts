@@ -200,10 +200,11 @@ export function writeSetupConfig(config: Record<string, unknown>): { ok: boolean
     const gatewayPort = setup.gatewayPort || 18888
     const workspace = resolveWorkspace(setup.workspace)
     const apiFormat = setup.apiFormat || 'openai-completions'
-    const providerModelKey = `${setup.provider}/${setup.modelId}`
+    const hasModel = !!(setup.provider && setup.modelId)
+    const providerModelKey = hasModel ? `${setup.provider}/${setup.modelId}` : ''
 
     // ===== 1. Write openclaw.json =====
-    const openclawConfig = {
+    const openclawConfig: Record<string, unknown> = {
       meta: {
         lastTouchedVersion: '2.0.0',
         lastTouchedAt: now,
@@ -220,14 +221,16 @@ export function writeSetupConfig(config: Record<string, unknown>): { ok: boolean
           maxConcurrent: 4,
           subagents: { maxConcurrent: 8 },
           compaction: { mode: 'safeguard' },
-          model: {
-            primary: providerModelKey,
-          },
-          models: {
-            [providerModelKey]: {
-              alias: setup.modelName,
+          ...(hasModel ? {
+            model: {
+              primary: providerModelKey,
             },
-          },
+            models: {
+              [providerModelKey]: {
+                alias: setup.modelName,
+              },
+            },
+          } : {}),
         },
       },
       gateway: {
@@ -243,33 +246,35 @@ export function writeSetupConfig(config: Record<string, unknown>): { ok: boolean
           allowInsecureAuth: true,
         },
       },
-      auth: {
-        profiles: {
-          [`${setup.provider}:default`]: {
-            provider: setup.provider,
-            mode: 'api_key',
+      ...(hasModel ? {
+        auth: {
+          profiles: {
+            [`${setup.provider}:default`]: {
+              provider: setup.provider,
+              mode: 'api_key',
+            },
           },
         },
-      },
-      models: {
-        mode: 'merge',
-        providers: {
-          [setup.provider]: {
-            baseUrl: setup.baseUrl,
-            api: apiFormat,
-            models: [
-              {
-                id: setup.modelId,
-                name: setup.modelName,
-                reasoning: setup.reasoning ?? false,
-                input: ['text'],
-                contextWindow: setup.contextWindow ?? 200000,
-                maxTokens: setup.maxTokens ?? 8192,
-              },
-            ],
+        models: {
+          mode: 'merge',
+          providers: {
+            [setup.provider]: {
+              baseUrl: setup.baseUrl,
+              api: apiFormat,
+              models: [
+                {
+                  id: setup.modelId,
+                  name: setup.modelName,
+                  reasoning: setup.reasoning ?? false,
+                  input: ['text'],
+                  contextWindow: setup.contextWindow ?? 200000,
+                  maxTokens: setup.maxTokens ?? 8192,
+                },
+              ],
+            },
           },
         },
-      },
+      } : {}),
       skills: {
         load: {
           watch: true,

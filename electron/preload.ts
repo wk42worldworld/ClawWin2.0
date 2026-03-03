@@ -232,7 +232,7 @@ const electronAPI = {
       ipcRenderer.invoke('cww:checkOrder', params),
     getState: () =>
       ipcRenderer.invoke('cww:getState'),
-    saveState: (state: { email: string; nickname: string; credits: number; serverUrl: string }) =>
+    saveState: (state: { email: string; nickname: string; credits: number; serverUrl: string; encPassword?: string }) =>
       ipcRenderer.invoke('cww:saveState', state),
   },
 }

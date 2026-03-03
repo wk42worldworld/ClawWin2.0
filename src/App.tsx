@@ -1,8 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { ChatArea } from './components/Chat/ChatArea'
 import { SessionList } from './components/Sidebar/SessionList'
-import { WelcomePage } from './components/Setup/WelcomePage'
+import { UserChoicePage } from './components/Setup/UserChoicePage'
 import { ClawWinSetup } from './components/Setup/ClawWinSetup'
+import { ModelSelect } from './components/Setup/ModelSelect'
+import { ApiKeyInput } from './components/Setup/ApiKeyInput'
 import { WorkspaceSetup } from './components/Setup/WorkspaceSetup'
 import { GatewaySetup } from './components/Setup/GatewaySetup'
 import { SetupComplete } from './components/Setup/SetupComplete'
@@ -17,13 +19,72 @@ import { CronManager } from './components/Settings/CronManager'
 import { UserCenter } from './components/Settings/UserCenter'
 import { useGateway } from './hooks/useGateway'
 import { useWebSocket } from './hooks/useWebSocket'
-import { useSetup, type SetupStep } from './hooks/useSetup'
-import type { ChatMessage, ChatSession, ChatAttachment, UpdateInfo } from './types'
+import { useSetup, MODEL_PROVIDERS, type SetupStep } from './hooks/useSetup'
+import type { ChatMessage, ChatSession, ChatAttachment, UpdateInfo, ModelProvider, ModelInfo } from './types'
 
-const SETUP_STEPS: SetupStep[] = ['welcome', 'clawwin', 'workspace', 'gateway', 'complete']
+const SETUP_STEPS: SetupStep[] = ['userchoice', 'clawwin', 'workspace', 'gateway', 'complete']
 
 function generateId(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
+}
+
+/** Sub-component for the "modelselect" setup step (select provider → enter API key) */
+function ModelSelectStep({ setup, onBack, onComplete }: {
+  setup: ReturnType<typeof useSetup>
+  onBack: () => void
+  onComplete: () => void
+}) {
+  const [phase, setPhase] = useState<'select' | 'apikey'>('select')
+  const [selectedProvider, setSelectedProvider] = useState<ModelProvider | null>(null)
+  const [selectedModel, setSelectedModel] = useState<ModelInfo | null>(null)
+
+  // Filter out clawwinweb — that path goes through ClawWinSetup
+  const customProviders = MODEL_PROVIDERS.filter((p) => p.id !== 'clawwinweb')
+
+  if (phase === 'apikey' && selectedProvider && selectedModel) {
+    return (
+      <ApiKeyInput
+        providerName={selectedProvider.name}
+        modelName={selectedModel.name}
+        baseUrl={selectedProvider.baseUrl}
+        apiFormat={selectedProvider.apiFormat}
+        modelId={selectedModel.id}
+        onBack={() => setPhase('select')}
+        onNext={(apiKey) => {
+          setup.updateConfig({
+            provider: selectedProvider.id,
+            modelId: selectedModel.id,
+            modelName: selectedModel.name,
+            baseUrl: selectedProvider.baseUrl,
+            apiFormat: selectedProvider.apiFormat,
+            apiKey,
+            reasoning: selectedModel.reasoning,
+            contextWindow: selectedModel.contextWindow,
+            maxTokens: selectedModel.maxTokens,
+          })
+          onComplete()
+        }}
+      />
+    )
+  }
+
+  return (
+    <ModelSelect
+      providers={customProviders}
+      selectedProvider={selectedProvider?.id}
+      selectedModel={selectedModel?.id}
+      onSelect={(provider, model) => {
+        setSelectedProvider(provider)
+        setSelectedModel(model)
+      }}
+      onBack={onBack}
+      onNext={() => {
+        if (selectedProvider && selectedModel) {
+          setPhase('apikey')
+        }
+      }}
+    />
+  )
 }
 
 function App() {
@@ -456,7 +517,9 @@ function App() {
 
   // Setup wizard
   if (showSetup) {
-    const currentStepIndex = SETUP_STEPS.indexOf(setup.step)
+    // modelselect maps to the same progress position as clawwin
+    const displayStep = setup.step === 'modelselect' ? 'clawwin' : setup.step
+    const currentStepIndex = SETUP_STEPS.indexOf(displayStep)
 
     return (
       <ErrorBoundary>
@@ -466,7 +529,7 @@ function App() {
               <div
                 key={s}
                 className={`progress-step ${
-                  setup.step === s ? 'active' : i < currentStepIndex ? 'done' : ''
+                  displayStep === s ? 'active' : i < currentStepIndex ? 'done' : ''
                 }`}
               >
                 <div className="progress-dot">{i + 1}</div>
@@ -474,13 +537,17 @@ function App() {
             ))}
           </div>
 
-          {setup.step === 'welcome' && (
-            <WelcomePage onNext={() => setup.setStep('clawwin')} />
+          {setup.step === 'userchoice' && (
+            <UserChoicePage
+              onClawWin={() => setup.setStep('clawwin')}
+              onCustom={() => setup.setStep('modelselect')}
+              onSkip={() => setup.setStep('workspace')}
+            />
           )}
 
           {setup.step === 'clawwin' && (
             <ClawWinSetup
-              onBack={() => setup.setStep('welcome')}
+              onBack={() => setup.setStep('userchoice')}
               onNext={(token) => {
                 setup.updateConfig({
                   provider: 'clawwinweb',
@@ -498,10 +565,18 @@ function App() {
             />
           )}
 
+          {setup.step === 'modelselect' && (
+            <ModelSelectStep
+              setup={setup}
+              onBack={() => setup.setStep('userchoice')}
+              onComplete={() => setup.setStep('workspace')}
+            />
+          )}
+
           {setup.step === 'workspace' && (
             <WorkspaceSetup
               workspace={setup.config.workspace ?? '~/openclaw'}
-              onBack={() => setup.setStep('clawwin')}
+              onBack={() => setup.setStep(setup.config.provider === 'clawwinweb' ? 'clawwin' : 'modelselect')}
               onNext={(workspace) => {
                 setup.updateConfig({ workspace })
                 setup.setStep('gateway')
@@ -525,9 +600,9 @@ function App() {
 
           {setup.step === 'complete' && (
             <SetupComplete
-              providerName={setup.config.provider === 'clawwinweb' ? 'ClawWinWeb' : (setup.config.provider ?? '')}
-              modelName={setup.config.modelName ?? ''}
-              apiKey={setup.config.apiKey ?? ''}
+              providerName={setup.config.provider === 'clawwinweb' ? 'ClawWinWeb' : (setup.config.provider || '未配置（稍后在设置中配置）')}
+              modelName={setup.config.modelName || '未配置'}
+              apiKey={setup.config.apiKey || '未配置'}
               workspace={setup.config.workspace ?? '~/openclaw'}
               gatewayPort={setup.config.gatewayPort ?? 18888}
               saving={setup.isSaving}
@@ -682,6 +757,78 @@ function App() {
               </button>
             </div>
             <div className="settings-body">
+              {/* 上半部分：两列网格 */}
+              <div className="settings-grid">
+                <div className="settings-section">
+                  <h3>模型</h3>
+                  <p className="settings-value">
+                    {setup.providers.find(p => p.id === setup.config.provider)?.name
+                      ?? setup.config.provider
+                      ?? '未配置'}
+                    {' / '}
+                    {setup.config.modelName ?? '未选择'}
+                  </p>
+                </div>
+                <div className="settings-section">
+                  <h3>网关服务</h3>
+                  <div className="settings-update-row">
+                    <p className="settings-value">端口 {gateway.port} · {gateway.state === 'ready' ? '运行中' : gateway.state}</p>
+                    <button
+                      className="btn-secondary"
+                      disabled={gateway.state === 'starting' || gateway.state === 'restarting'}
+                      onClick={() => gateway.restart()}
+                    >
+                      {gateway.state === 'starting' || gateway.state === 'restarting' ? '重启中...' : '重启网关'}
+                    </button>
+                  </div>
+                </div>
+                <div className="settings-section">
+                  <h3>版本</h3>
+                  <div className="settings-update-row">
+                    <p className="settings-value">v{appVersion || '...'}</p>
+                    <button
+                      className="btn-secondary"
+                      disabled={updateChecking}
+                      onClick={async () => {
+                        setUpdateChecking(true)
+                        setUpdateCheckResult(null)
+                        try {
+                          const info = await window.electronAPI.app.checkForUpdate()
+                          if (info) {
+                            setUpdateInfo(info)
+                            setUpdateDialogVisible(true)
+                            setBgDownloadDone(false)
+                            setShowSettings(false)
+                          } else {
+                            setUpdateCheckResult('已是最新版本')
+                          }
+                        } catch {
+                          setUpdateCheckResult('检查失败，请稍后重试')
+                        } finally {
+                          setUpdateChecking(false)
+                        }
+                      }}
+                    >
+                      {updateChecking ? '检查中...' : '检查更新'}
+                    </button>
+                  </div>
+                  {updateCheckResult && <p className="settings-hint">{updateCheckResult}</p>}
+                </div>
+                <div className="settings-section">
+                  <h3>消息渠道</h3>
+                  {setup.config.channels && Object.keys(setup.config.channels).length > 0 ? (
+                    <div className="settings-channels-list">
+                      {Object.keys(setup.config.channels).map((ch) => (
+                        <span key={ch} className="settings-channel-tag">{ch}</span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="settings-value settings-muted">未配置</p>
+                  )}
+                </div>
+              </div>
+
+              {/* 工作区 - 独占一行 */}
               <div className="settings-section">
                 <h3>工作区</h3>
                 <div className="settings-workspace-row">
@@ -708,29 +855,8 @@ function App() {
                   </button>
                 </div>
               </div>
-              <div className="settings-section">
-                <h3>模型</h3>
-                <p className="settings-value">
-                  {setup.providers.find(p => p.id === setup.config.provider)?.name
-                    ?? setup.config.provider
-                    ?? '未配置'}
-                  {' / '}
-                  {setup.config.modelName ?? '未选择'}
-                </p>
-              </div>
-              <div className="settings-section">
-                <h3>网关服务</h3>
-                <div className="settings-update-row">
-                  <p className="settings-value">端口 {gateway.port} · {gateway.state === 'ready' ? '运行中' : gateway.state}</p>
-                  <button
-                    className="btn-secondary"
-                    disabled={gateway.state === 'starting' || gateway.state === 'restarting'}
-                    onClick={() => gateway.restart()}
-                  >
-                    {gateway.state === 'starting' || gateway.state === 'restarting' ? '重启中...' : '重启网关'}
-                  </button>
-                </div>
-              </div>
+
+              {/* 响应超时 - 独占一行 */}
               <div className="settings-section">
                 <h3>响应超时</h3>
                 <p className="settings-hint">发送消息后等待 AI 回复的最长时间，推理模型建议 120 秒以上</p>
@@ -751,87 +877,53 @@ function App() {
                   </span>
                 </div>
               </div>
-              <div className="settings-section">
-                <h3>自动压缩上下文</h3>
-                <label className="settings-toggle-row">
-                  <input
-                    type="checkbox"
-                    checked={autoCompact}
-                    onChange={(e) => {
-                      const val = e.target.checked
-                      setAutoCompact(val)
-                      window.electronAPI.config.saveAutoCompact(val).catch(() => {})
-                    }}
-                  />
-                  <span>上下文使用超过 70% 时自动压缩消息历史</span>
-                </label>
-              </div>
-              <div className="settings-section">
-                <h3>消息渠道</h3>
-                {setup.config.channels && Object.keys(setup.config.channels).length > 0 ? (
-                  <div className="settings-channels-list">
-                    {Object.keys(setup.config.channels).map((ch) => (
-                      <span key={ch} className="settings-channel-tag">{ch}</span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="settings-value settings-muted">未配置</p>
-                )}
-              </div>
-              <div className="settings-section">
-                <h3>版本</h3>
-                <div className="settings-update-row">
-                  <p className="settings-value">v{appVersion || '...'}</p>
-                  <button
-                    className="btn-secondary"
-                    disabled={updateChecking}
-                    onClick={async () => {
-                      setUpdateChecking(true)
-                      setUpdateCheckResult(null)
-                      try {
-                        const info = await window.electronAPI.app.checkForUpdate()
-                        if (info) {
-                          setUpdateInfo(info)
-                          setUpdateDialogVisible(true)
-                          setBgDownloadDone(false)
-                          setShowSettings(false)
-                        } else {
-                          setUpdateCheckResult('已是最新版本')
-                        }
-                      } catch {
-                        setUpdateCheckResult('检查失败，请稍后重试')
-                      } finally {
-                        setUpdateChecking(false)
-                      }
-                    }}
-                  >
-                    {updateChecking ? '检查中...' : '检查更新'}
-                  </button>
+
+              {/* 开关选项 */}
+              <div className="settings-grid">
+                <div className="settings-section">
+                  <label className="settings-toggle-row">
+                    <input
+                      type="checkbox"
+                      checked={autoCompact}
+                      onChange={(e) => {
+                        const val = e.target.checked
+                        setAutoCompact(val)
+                        window.electronAPI.config.saveAutoCompact(val).catch(() => {})
+                      }}
+                    />
+                    <span>自动压缩上下文</span>
+                  </label>
                 </div>
-                {updateCheckResult && <p className="settings-hint">{updateCheckResult}</p>}
-                <label className="settings-toggle-row">
-                  <input
-                    type="checkbox"
-                    checked={skipUpdateCheck}
-                    onChange={(e) => {
-                      const val = e.target.checked
-                      setSkipUpdateCheck(val)
-                      window.electronAPI.config.saveSkipUpdate(val).catch(() => {})
-                    }}
-                  />
-                  <span>禁用自动更新提示</span>
-                </label>
+                <div className="settings-section">
+                  <label className="settings-toggle-row">
+                    <input
+                      type="checkbox"
+                      checked={skipUpdateCheck}
+                      onChange={(e) => {
+                        const val = e.target.checked
+                        setSkipUpdateCheck(val)
+                        window.electronAPI.config.saveSkipUpdate(val).catch(() => {})
+                      }}
+                    />
+                    <span>禁用自动更新提示</span>
+                  </label>
+                </div>
               </div>
-              <button
-                className="btn-secondary settings-reconfig-btn"
-                onClick={() => {
-                  setShowSettings(false)
-                  setShowSetup(true)
-                  setup.setStep('welcome')
-                }}
-              >
-                重新配置向导
-              </button>
+
+              {/* 底部操作栏 */}
+              <div className="settings-footer">
+                <span className="settings-qq">QQ群: 463169230</span>
+                <button
+                  className="btn-secondary settings-reconfig-btn"
+                  onClick={() => {
+                    setShowSettings(false)
+                    setShowSetup(true)
+                    setup.setStep('userchoice')
+                  }}
+                >
+                  重新配置向导
+                </button>
+              </div>
             </div>
           </div>
         </div>

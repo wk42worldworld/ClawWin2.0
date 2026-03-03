@@ -525,7 +525,7 @@ function setupIPC() {
       if (!config.models) config.models = { mode: 'merge' }
       if (!config.models.providers) config.models.providers = {}
       const existingProvider = config.models.providers[params.provider] ?? { models: [] }
-      const newModel: Record<string, unknown> = {
+      const newModel: { id: string; [k: string]: unknown } = {
         id: params.modelId,
         name: params.modelName,
         reasoning: params.reasoning ?? false,
@@ -565,6 +565,10 @@ function setupIPC() {
       if (params.apiKey) {
         const openclawHome = path.join(os.homedir(), '.openclaw')
         const authFile = path.join(openclawHome, 'auth-profiles.json')
+        // OpenClaw agent 实际从 agents/main/agent/ 目录加载 auth-profiles
+        const agentDir = path.join(openclawHome, 'agents', 'main', 'agent')
+        const agentAuthFile = path.join(agentDir, 'auth-profiles.json')
+
         let existingAuth: Record<string, unknown> = { profiles: {} }
         if (fs.existsSync(authFile)) {
           try { existingAuth = JSON.parse(fs.readFileSync(authFile, 'utf-8')) } catch { /* ignore */ }
@@ -579,6 +583,9 @@ function setupIPC() {
         }
         const authJson = JSON.stringify(existingAuth, null, 2)
         fs.writeFileSync(authFile, authJson, 'utf-8')
+        // 同步写入 agent 目录，否则 agent 找不到 API key
+        if (!fs.existsSync(agentDir)) fs.mkdirSync(agentDir, { recursive: true })
+        fs.writeFileSync(agentAuthFile, authJson, 'utf-8')
       }
 
       return { ok: true }
@@ -806,7 +813,7 @@ function setupIPC() {
     }
   })
 
-  ipcMain.handle('cww:saveState', (_event, state: { email: string; nickname: string; credits: number; serverUrl: string }) => {
+  ipcMain.handle('cww:saveState', (_event, state: { email: string; nickname: string; credits: number; serverUrl: string; encPassword?: string }) => {
     try {
       const ui = readUiConfig()
       ui.clawwinweb = state
@@ -1157,6 +1164,131 @@ app.whenReady().then(async () => {
 
   // Auto-start gateway if not first run (before creating window so state is ready)
   if (!isFirstRun()) {
+    // 自动同步 auth-profiles 到 agent 目录（修复旧版本只写全局文件的 bug）
+    try {
+      const globalAuthFile = path.join(os.homedir(), '.openclaw', 'auth-profiles.json')
+      const agentAuthDir = path.join(os.homedir(), '.openclaw', 'agents', 'main', 'agent')
+      const agentAuthFile = path.join(agentAuthDir, 'auth-profiles.json')
+      if (fs.existsSync(globalAuthFile)) {
+        const globalAuth = JSON.parse(fs.readFileSync(globalAuthFile, 'utf-8'))
+        let agentAuth: Record<string, unknown> = { profiles: {} }
+        if (fs.existsSync(agentAuthFile)) {
+          try { agentAuth = JSON.parse(fs.readFileSync(agentAuthFile, 'utf-8')) } catch { /* ignore */ }
+        }
+        // 将全局 profiles 中的 api_key 条目合并到 agent 目录
+        const globalProfiles = (globalAuth.profiles ?? {}) as Record<string, { type?: string; key?: string }>
+        const agentProfiles = (agentAuth.profiles ?? {}) as Record<string, { type?: string; key?: string }>
+        let synced = false
+        for (const [profileId, profile] of Object.entries(globalProfiles)) {
+          if (profile.type === 'api_key' && profile.key) {
+            if (!agentProfiles[profileId] || agentProfiles[profileId].key !== profile.key) {
+              agentProfiles[profileId] = profile
+              synced = true
+            }
+          }
+        }
+        if (synced) {
+          agentAuth.profiles = agentProfiles
+          if (!fs.existsSync(agentAuthDir)) fs.mkdirSync(agentAuthDir, { recursive: true })
+          fs.writeFileSync(agentAuthFile, JSON.stringify(agentAuth, null, 2), 'utf-8')
+          console.log('[auth-sync] synced auth-profiles to agent directory')
+        }
+      }
+    } catch (err) {
+      console.error('[auth-sync] failed:', err)
+    }
+
+    // 自动续期 ClawWin JWT token（7 天过期，提前 2 天自动重新登录）
+    try {
+      const uiConfigPath = path.join(os.homedir(), '.openclaw', 'clawwin-ui.json')
+      let uiCfg: Record<string, unknown> = {}
+      if (fs.existsSync(uiConfigPath)) {
+        try { uiCfg = JSON.parse(fs.readFileSync(uiConfigPath, 'utf-8')) } catch { /* ignore */ }
+      }
+      const cwwState = uiCfg.clawwinweb as { email?: string; encPassword?: string; serverUrl?: string } | undefined
+      if (cwwState?.email && cwwState?.encPassword) {
+        const openclawHome = path.join(os.homedir(), '.openclaw')
+        const globalAuthFile = path.join(openclawHome, 'auth-profiles.json')
+        let currentToken = ''
+        if (fs.existsSync(globalAuthFile)) {
+          try {
+            const authData = JSON.parse(fs.readFileSync(globalAuthFile, 'utf-8'))
+            currentToken = authData?.profiles?.['clawwinweb:default']?.key ?? ''
+          } catch { /* ignore */ }
+        }
+        // 解码 JWT 检查过期时间（JWT = header.payload.signature，payload 是 base64url）
+        let needRenew = false
+        if (currentToken) {
+          try {
+            const parts = currentToken.split('.')
+            if (parts.length === 3) {
+              const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'))
+              const exp = payload.exp as number
+              if (exp) {
+                const twoDaysFromNow = Math.floor(Date.now() / 1000) + 2 * 24 * 3600
+                if (exp < twoDaysFromNow) {
+                  needRenew = true
+                  console.log('[cww-renew] token expires at', new Date(exp * 1000).toISOString(), '- renewing')
+                }
+              }
+            }
+          } catch {
+            needRenew = true // 无法解析 token，尝试续期
+          }
+        } else {
+          needRenew = true // 没有 token，尝试登录
+        }
+        if (needRenew) {
+          const serverUrl = cwwState.serverUrl || 'https://www.mybotworld.com'
+          const pwd = Buffer.from(cwwState.encPassword, 'base64').toString('utf-8')
+          try {
+            const res = await fetch(`${serverUrl}/api/auth/login`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: cwwState.email, password: pwd }),
+              signal: AbortSignal.timeout(15000),
+            })
+            const data = await res.json() as { token?: string; user?: { nickname?: string; credits?: number }; error?: string }
+            if (res.ok && data.token) {
+              // 更新 auth-profiles 中的 token（全局 + agent 目录）
+              const newToken = data.token
+              const agentAuthDir = path.join(openclawHome, 'agents', 'main', 'agent')
+              const agentAuthFile = path.join(agentAuthDir, 'auth-profiles.json')
+              for (const authPath of [globalAuthFile, agentAuthFile]) {
+                let authData: Record<string, unknown> = { profiles: {} }
+                if (fs.existsSync(authPath)) {
+                  try { authData = JSON.parse(fs.readFileSync(authPath, 'utf-8')) } catch { /* ignore */ }
+                }
+                if (!authData.profiles || typeof authData.profiles !== 'object') authData.profiles = {}
+                ;(authData.profiles as Record<string, unknown>)['clawwinweb:default'] = {
+                  provider: 'clawwinweb',
+                  type: 'api_key',
+                  key: newToken,
+                }
+                const dir = path.dirname(authPath)
+                if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+                fs.writeFileSync(authPath, JSON.stringify(authData, null, 2), 'utf-8')
+              }
+              // 更新 UI 状态
+              uiCfg.clawwinweb = {
+                ...cwwState,
+                nickname: data.user?.nickname ?? (cwwState as Record<string, unknown>).nickname ?? '',
+                credits: data.user?.credits ?? (cwwState as Record<string, unknown>).credits ?? 0,
+              }
+              fs.writeFileSync(uiConfigPath, JSON.stringify(uiCfg, null, 2), 'utf-8')
+              console.log('[cww-renew] token renewed successfully')
+            } else {
+              console.warn('[cww-renew] login failed:', data.error || `HTTP ${res.status}`)
+            }
+          } catch (err) {
+            console.warn('[cww-renew] renewal request failed:', err)
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[cww-renew] auto-renewal failed:', err)
+    }
+
     // 自动生成 CLAUDE.md 环境信息
     try { generateClaudeMd() } catch (err) {
       console.error('[claude-md] generation failed:', err)

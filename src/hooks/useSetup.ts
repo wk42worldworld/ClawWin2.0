@@ -139,7 +139,7 @@ export const MODEL_PROVIDERS: ModelProvider[] = [
   },
 ]
 
-export type SetupStep = 'welcome' | 'clawwin' | 'workspace' | 'gateway' | 'complete'
+export type SetupStep = 'welcome' | 'userchoice' | 'clawwin' | 'modelselect' | 'workspace' | 'gateway' | 'complete'
 
 /**
  * Generate a random 48-character hex token for gateway authentication.
@@ -178,7 +178,7 @@ interface UseSetupReturn {
 }
 
 export function useSetup(): UseSetupReturn {
-  const [step, setStep] = useState<SetupStep>('welcome')
+  const [step, setStep] = useState<SetupStep>('userchoice')
   const [config, setConfig] = useState<Partial<SetupConfig>>(() => ({
     gatewayPort: 18888,
     gatewayToken: generateGatewayToken(),
@@ -242,19 +242,11 @@ export function useSetup(): UseSetupReturn {
     setSaveError(null)
     setIsSaving(true)
     try {
-      // Validate required fields before attempting to save
       const cfg = config
-      if (!cfg.provider || !cfg.modelId || !cfg.modelName || !cfg.apiKey) {
-        const missing: string[] = []
-        if (!cfg.provider) missing.push('服务提供商')
-        if (!cfg.modelId) missing.push('模型')
-        if (!cfg.modelName) missing.push('模型名称')
-        if (!cfg.apiKey) missing.push('API Key')
-        setSaveError(`配置信息不完整，缺少: ${missing.join(', ')}`)
-        return false
-      }
+      // 模型配置可选（用户可能选择"之后再配置"）
+      const hasModel = !!(cfg.provider && cfg.modelId && cfg.modelName && cfg.apiKey)
 
-      const providerModelKey = `${cfg.provider}/${cfg.modelId}`
+      const providerModelKey = hasModel ? `${cfg.provider}/${cfg.modelId}` : ''
       const now = new Date().toISOString()
 
       const fullConfig: Record<string, unknown> = {

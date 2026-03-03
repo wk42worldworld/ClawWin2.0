@@ -9,6 +9,26 @@ interface LocalModelSettingsProps {
 const RECOMMENDED_MODELS = [
   // ===== 推荐首选（8GB 内存） =====
   {
+    id: 'qwen3.5:4b',
+    name: 'Qwen3.5 4B',
+    description: '最新通义千问3.5，多模态+256K上下文+201种语言，轻量首选',
+    size: '2.7GB',
+    sizeBytes: 2_900_000_000,
+    minMemory: '6GB',
+    minMemoryBytes: 6_442_450_944,
+    tags: ['新', '推荐', '多模态', '中文强'],
+  },
+  {
+    id: 'qwen3.5:9b',
+    name: 'Qwen3.5 9B',
+    description: '最新通义千问3.5，多模态视觉+语言，超越 Qwen3 同级别',
+    size: '5.6GB',
+    sizeBytes: 6_013_000_000,
+    minMemory: '8GB',
+    minMemoryBytes: 8_589_934_592,
+    tags: ['新', '推荐', '多模态', '中文强'],
+  },
+  {
     id: 'qwen3:8b',
     name: 'Qwen3 8B',
     description: '最新通义千问3，思考+对话双模式，中文最强',
@@ -39,6 +59,16 @@ const RECOMMENDED_MODELS = [
     tags: ['多模态', '中文强'],
   },
   // ===== 进阶选择（10-16GB 内存） =====
+  {
+    id: 'qwen3.5:27b',
+    name: 'Qwen3.5 27B',
+    description: '最新通义千问3.5，多模态+高性能，全面超越 Qwen3 同级',
+    size: '16.4GB',
+    sizeBytes: 17_610_000_000,
+    minMemory: '16GB',
+    minMemoryBytes: 17_179_869_184,
+    tags: ['新', '推荐', '多模态', '中文强'],
+  },
   {
     id: 'qwen3:14b',
     name: 'Qwen3 14B',
@@ -71,6 +101,16 @@ const RECOMMENDED_MODELS = [
   },
   // ===== 高配选择（24GB+ 内存） =====
   {
+    id: 'qwen3.5:35b-a3b',
+    name: 'Qwen3.5 35B-A3B',
+    description: '最新通义千问3.5 MoE，35B参数仅需3B运算，多模态+高性价比',
+    size: '21.5GB',
+    sizeBytes: 23_090_000_000,
+    minMemory: '24GB',
+    minMemoryBytes: 25_769_803_776,
+    tags: ['新', '推荐', 'MoE', '多模态', '中文强'],
+  },
+  {
     id: 'qwen3:32b',
     name: 'Qwen3 32B',
     description: '大参数 Qwen3，各项能力大幅提升',
@@ -102,6 +142,16 @@ const RECOMMENDED_MODELS = [
   },
   // ===== 专业级（48-80GB 内存） =====
   {
+    id: 'qwen3.5:122b-a10b',
+    name: 'Qwen3.5 122B-A10B',
+    description: '最新通义千问3.5 MoE旗舰，122B参数10B激活，多模态顶级',
+    size: '73.0GB',
+    sizeBytes: 78_400_000_000,
+    minMemory: '80GB',
+    minMemoryBytes: 85_899_345_920,
+    tags: ['新', '专业级', 'MoE', '多模态', '中文强'],
+  },
+  {
     id: 'qwen3-vl:72b',
     name: 'Qwen3-VL 72B',
     description: '旗舰级视觉语言模型，全球顶尖多模态理解+Agent能力',
@@ -132,6 +182,16 @@ const RECOMMENDED_MODELS = [
     tags: ['专业级', 'MoE', '多模态'],
   },
   // ===== 旗舰级（128GB+ 内存） =====
+  {
+    id: 'qwen3.5:397b-a17b',
+    name: 'Qwen3.5 397B-A17B',
+    description: '通义千问3.5旗舰 MoE，397B参数17B激活，多模态+256K上下文',
+    size: '239GB',
+    sizeBytes: 256_700_000_000,
+    minMemory: '256GB',
+    minMemoryBytes: 274_877_906_944,
+    tags: ['新', '旗舰', 'MoE', '多模态', '中文强'],
+  },
   {
     id: 'qwen3:235b-a22b',
     name: 'Qwen3 235B-A22B',
@@ -542,7 +602,7 @@ export const LocalModelSettings: React.FC<LocalModelSettingsProps> = ({ onSaved 
                   <div className="local-model-card-tags">
                     {active && <span className="local-model-active-badge">使用中</span>}
                     {model.tags.map((tag) => (
-                      <span key={tag} className="local-model-tag">{tag}</span>
+                      <span key={tag} className={`local-model-tag${tag === '新' ? ' local-model-tag-new' : ''}`} title={tag === '推理' ? '推理模型速度慢不适合 Agent，请慎重使用' : undefined}>{tag}</span>
                     ))}
                   </div>
                 </div>

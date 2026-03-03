@@ -36,7 +36,7 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({
     openai: { label: '需科学上网', className: 'tag-international' },
     moonshot: { label: '国内直连', className: 'tag-domestic' },
     xai: { label: '需科学上网', className: 'tag-international' },
-    zhipu: { label: '国内直连 · 推荐', className: 'tag-recommended' },
+    zhipu: { label: '国内直连', className: 'tag-domestic' },
     qwen: { label: '国内直连', className: 'tag-domestic' },
     siliconflow: { label: '国内直连 · 聚合', className: 'tag-domestic' },
     nvidia: { label: '需科学上网 · 免费额度', className: 'tag-international' },
@@ -167,7 +167,8 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({
                     >
                       <div className="model-name">{model.name}</div>
                       <div className="model-meta">
-                        {model.reasoning && <span className="model-badge">推理</span>}
+                        {model.reasoning && <span className="model-badge" title="推理模型速度慢不适合 Agent，请慎重使用">推理</span>}
+                        {model.reasoning && <span className="model-reasoning-warn">速度慢，不适合 Agent</span>}
                         <span>上下文: {(model.contextWindow / 1000).toFixed(0)}K</span>
                       </div>
                     </div>

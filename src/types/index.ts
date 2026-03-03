@@ -123,7 +123,7 @@ interface ElectronCww {
   createOrder: (params: { serverUrl: string; token: string; amount: number; payType: string }) => Promise<{ orderNo: string; payUrl: string; credits: number }>
   checkOrder: (params: { serverUrl: string; token: string; orderNo: string }) => Promise<{ order: { status: string; credits: number } }>
   getState: () => Promise<{ email?: string; nickname?: string; credits?: number; serverUrl?: string } | null>
-  saveState: (state: { email: string; nickname: string; credits: number; serverUrl: string }) => Promise<{ ok: boolean }>
+  saveState: (state: { email: string; nickname: string; credits: number; serverUrl: string; encPassword?: string }) => Promise<{ ok: boolean }>
 }
 
 export interface UpdateInfo {

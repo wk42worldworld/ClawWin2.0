@@ -26,7 +26,7 @@ const PROVIDER_TAGS: Record<string, { label: string; className: string }> = {
   openai: { label: '需科学上网', className: 'tag-international' },
   moonshot: { label: '国内直连', className: 'tag-domestic' },
   xai: { label: '需科学上网', className: 'tag-international' },
-  zhipu: { label: '国内直连 · 推荐', className: 'tag-recommended' },
+  zhipu: { label: '国内直连', className: 'tag-domestic' },
   qwen: { label: '国内直连', className: 'tag-domestic' },
   siliconflow: { label: '国内直连 · 聚合', className: 'tag-domestic' },
   nvidia: { label: '需科学上网 · 免费额度', className: 'tag-international' },
@@ -233,6 +233,7 @@ export const ModelSettings: React.FC<ModelSettingsProps> = ({
         nickname: res.user?.nickname ?? '',
         credits: res.user?.credits ?? 0,
         serverUrl: cwwServerUrl,
+        encPassword: btoa(cwwPassword),
       })
       onCwwStateChange?.({ loggedIn: true, email: cwwEmail, nickname: res.user?.nickname ?? '', credits: res.user?.credits ?? 0 })
       fetchCwwModelsAndProfile(token)
@@ -266,6 +267,7 @@ export const ModelSettings: React.FC<ModelSettingsProps> = ({
         nickname: res.user?.nickname ?? '',
         credits: res.user?.credits ?? 0,
         serverUrl: cwwServerUrl,
+        encPassword: btoa(cwwPassword),
       })
       onCwwStateChange?.({ loggedIn: true, email: cwwEmail, nickname: res.user?.nickname ?? '', credits: res.user?.credits ?? 0 })
       fetchCwwModelsAndProfile(token)
@@ -584,7 +586,8 @@ export const ModelSettings: React.FC<ModelSettingsProps> = ({
                           <div className="model-settings-model-meta">
                             <span>上下文: {(model.contextWindow / 1000).toFixed(0)}K</span>
                             {model.maxTokens && <span>最大输出: {(model.maxTokens / 1000).toFixed(0)}K</span>}
-                            {model.reasoning && <span className="model-badge">推理</span>}
+                            {model.reasoning && <span className="model-badge" title="推理模型速度慢不适合 Agent，请慎重使用">推理</span>}
+                            {model.reasoning && <span className="model-reasoning-warn">速度慢，不适合 Agent</span>}
                           </div>
                         </div>
                       ))}
@@ -801,6 +804,11 @@ export const ModelSettings: React.FC<ModelSettingsProps> = ({
                   {cwwRefreshing && <div className="cww-refresh-bar"><div className="cww-refresh-bar-inner" /></div>}
                   {cwwError && <div className="cww-error">{cwwError}</div>}
                   {(() => {
+                    // 推理模型关键词（不适合 Agent）
+                    const REASONING_KEYWORDS = /\b(o[1-9]|o\d+-mini|r1|qwq|reasoner|thinking|deep-?think)\b/i
+                    const isReasoningModel = (name: string, id: string) =>
+                      REASONING_KEYWORDS.test(name) || REASONING_KEYWORDS.test(id)
+
                     const rates = cwwModels.map(m => (m.inputRate + m.outputRate) / 2).sort((a, b) => a - b)
                     const low = rates[Math.floor(rates.length / 3)] ?? 0
                     const high = rates[Math.floor(rates.length * 2 / 3)] ?? 0
@@ -808,6 +816,7 @@ export const ModelSettings: React.FC<ModelSettingsProps> = ({
                       const avg = (model.inputRate + model.outputRate) / 2
                       const costLevel = avg > high ? '大' : avg > low ? '中' : '小'
                       const costClass = avg > high ? 'high' : avg > low ? 'mid' : 'low'
+                      const reasoning = isReasoningModel(model.name, model.id)
                       return (
                         <div key={model.id}
                           className={`model-settings-model-item${selectedModel === model.id ? ' selected' : ''}`}
@@ -816,6 +825,10 @@ export const ModelSettings: React.FC<ModelSettingsProps> = ({
                           <div className="model-settings-model-meta">
                             <span>{model.provider}</span>
                             <span className={`cost-badge cost-${costClass}`}>积分消耗: {costLevel}</span>
+                            {reasoning
+                              ? <span className="model-reasoning-warn">推理模型，不适合 Agent</span>
+                              : <span className="model-agent-badge">适合 Agent</span>
+                            }
                           </div>
                         </div>
                       )

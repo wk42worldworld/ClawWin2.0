@@ -41,6 +41,7 @@ export const ClawWinSetup: React.FC<ClawWinSetupProps> = ({ onBack, onNext, onSk
         nickname: res.user?.nickname ?? '',
         credits: res.user?.credits ?? 0,
         serverUrl: CWW_SERVER_URL,
+        encPassword: btoa(password),
       })
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -68,6 +69,7 @@ export const ClawWinSetup: React.FC<ClawWinSetupProps> = ({ onBack, onNext, onSk
         nickname: res.user?.nickname ?? '',
         credits: res.user?.credits ?? 0,
         serverUrl: CWW_SERVER_URL,
+        encPassword: btoa(password),
       })
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)

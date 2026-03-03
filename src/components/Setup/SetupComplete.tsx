@@ -73,6 +73,15 @@ export const SetupComplete: React.FC<SetupCompleteProps> = ({
         </div>
       </div>
 
+      {saving && (
+        <div className="setup-saving-progress">
+          <div className="setup-saving-bar">
+            <div className="setup-saving-bar-inner" />
+          </div>
+          <p className="setup-saving-text">正在保存配置并启动网关...</p>
+        </div>
+      )}
+
       {error && (
         <div className="setup-error" role="alert">
           <span className="error-icon">!</span>
