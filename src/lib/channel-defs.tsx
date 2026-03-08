@@ -140,10 +140,11 @@ export const CHANNELS: ChannelDef[] = [
     blurb: '使用 @BotFather 注册一个机器人并开始使用',
     logo: TelegramLogo,
     tutorialSteps: [
+      '请确保 ClawWin 和 Telegram 均已开启科学上网（代理/VPN）',
       '打开 Telegram，搜索 @BotFather 并发送 /newbot',
       '按提示输入机器人名称和用户名（用户名需以 bot 结尾）',
       'BotFather 会返回一个 Bot Token（格式如 123456:ABC-DEF...）',
-      '将 Bot Token 粘贴到下方输入框，启用频道',
+      '在 ClawWin 中点击 Telegram 频道右方的开关启用频道，然后点击「编辑」按钮，在弹出的输入框中填入 Bot Token 后保存',
       '启动 ClawWin 后，在 Telegram 中搜索你的机器人',
       '向机器人发送任意消息，机器人会自动回复 8 位配对码',
       '回到 ClawWin 聊天工具面板 → 配对管理，输入配对码并批准',
