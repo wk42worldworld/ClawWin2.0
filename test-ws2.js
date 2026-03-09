@@ -1,0 +1,47 @@
+const WebSocket = require('ws');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+
+const config = JSON.parse(fs.readFileSync(path.join(os.homedir(), '.openclaw', 'openclaw.json'), 'utf-8'));
+const TOKEN = config.gateway.auth.token;
+const PORT = config.gateway.port;
+
+const ws = new WebSocket(`ws://127.0.0.1:${PORT}`);
+
+ws.on('open', () => { console.log('[连接成功]'); });
+
+ws.on('message', (data) => {
+  const msg = JSON.parse(data.toString());
+
+  // 跳过 health 事件
+  if (msg.type === 'event' && msg.event === 'health') return;
+
+  console.log(`[${msg.type}] ${msg.event || msg.method || msg.id || ''}:`, JSON.stringify(msg).substring(0, 500));
+
+  if (msg.type === 'event' && msg.event === 'connect.challenge') {
+    ws.send(JSON.stringify({
+      type: 'req', id: 'c1', method: 'connect',
+      params: {
+        minProtocol: 3, maxProtocol: 3,
+        client: { id: 'webchat-ui', version: '1.0.0', platform: 'win32', mode: 'webchat' },
+        role: 'operator', scopes: ['operator.admin'], caps: [],
+        auth: { token: TOKEN }, locale: 'zh-CN'
+      }
+    }));
+  }
+
+  if (msg.type === 'res' && msg.id === 'c1' && msg.ok) {
+    console.log('[发送消息]');
+    ws.send(JSON.stringify({
+      type: 'req', id: 'chat1', method: 'chat.send',
+      params: { sessionKey: 'main', message: '你好', deliver: false, idempotencyKey: 'k-' + Date.now() }
+    }));
+  }
+});
+
+ws.on('error', (err) => { console.log('[错误]', err.message); });
+ws.on('close', (code, reason) => { console.log('[关闭]', code); });
+
+// 等 60 秒看所有事件
+setTimeout(() => { console.log('[超时结束]'); ws.close(); process.exit(0); }, 60000);

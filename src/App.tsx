@@ -768,13 +768,6 @@ function App() {
   return (
     <ErrorBoundary>
       <div className="app-container">
-        <div className="navbar">
-          <div className="navbar-logo">
-            <div className="navbar-brand">
-              <span className="navbar-brand-name">ClawWin</span>
-            </div>
-          </div>
-        </div>
         <div className="app-main">
           <div className="system-sidebar">
             <div className="system-sidebar-icons">
@@ -870,12 +863,6 @@ function App() {
               currentModelKey={currentModelKey}
               onSwitchModel={handleSwitchModel}
             />
-          </div>
-        </div>
-        <div className="app-footer">
-          <div className="footer-version">
-            <div className="footer-status-dot" style={{ backgroundColor: gateway.state === 'ready' ? '#22c55e' : gateway.state === 'error' ? '#ef4444' : '#f59e0b', boxShadow: gateway.state === 'ready' ? '0 0 12px rgba(16, 185, 129, 0.6)' : 'none' }} />
-            {appVersion && <span className="footer-version-text">v{appVersion}</span>}
           </div>
         </div>
       </div>

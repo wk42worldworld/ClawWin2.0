@@ -90,9 +90,9 @@ function createWindow() {
     icon: getIconPath(),
     titleBarStyle: 'hidden',
     titleBarOverlay: {
-      color: '#2D2D2D',
-      symbolColor: '#ffffff',
-      height: 36,
+      color: '#ffffff',
+      symbolColor: '#6b7280',
+      height: 48,
     },
     webPreferences: {
       preload: PRELOAD,
