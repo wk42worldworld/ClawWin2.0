@@ -336,6 +336,7 @@ export interface LocalModelState {
   progress?: number
   downloadedBytes?: number
   totalBytes?: number
+  speed?: number
   currentFile?: number
   totalFileCount?: number
   error?: string

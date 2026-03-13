@@ -261,11 +261,12 @@ export class OllamaManager {
   private pullRequest: http.ClientRequest | null = null
   private mainWindow: BrowserWindow | null = null
 
-  // 下载地址列表（按优先级尝试，中国大陆可访问）
+  // 下载地址列表（按速度优先级排列，自动尝试下一个）
   private static OLLAMA_DOWNLOAD_URLS = [
-    'https://ollama.com/download/ollama-windows-amd64.zip',                         // 官方 CDN
-    'https://github.moeyy.xyz/https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip',  // GitHub 镜像代理
-    'https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip',  // GitHub 原始地址（备选）
+    'https://gh.llkk.cc/https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip',     // GitHub 加速（国内最快）
+    'https://gh-proxy.com/https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip',   // GitHub 代理（国内备选）
+    'https://ollama.com/download/ollama-windows-amd64.zip',                                                       // 官方 CDN
+    'https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip',                         // GitHub 原始地址
   ]
 
   constructor(ollamaBaseDir?: string) {
@@ -315,7 +316,7 @@ export class OllamaManager {
     this.mainWindow = win
   }
 
-  private sendProgress(state: { id: string; status: string; progress?: number; downloadedBytes?: number; totalBytes?: number; currentFile?: number; totalFileCount?: number; error?: string }) {
+  private sendProgress(state: { id: string; status: string; progress?: number; downloadedBytes?: number; totalBytes?: number; speed?: number; currentFile?: number; totalFileCount?: number; error?: string }) {
     this.mainWindow?.webContents.send('ollama:progress', state)
   }
 
@@ -356,28 +357,44 @@ export class OllamaManager {
 
     const zipPath = path.join(this.ollamaDir, 'ollama-download.zip')
 
-    // 按优先级依次尝试下载源
     this.sendProgress({ id: '__ollama_install__', status: 'downloading', progress: 0 })
+
+    // ── 并行竞速：所有源同时发 HEAD 请求，最快响应的用于下载 ──
+    const fastestUrl = await this.raceFastestUrl(OllamaManager.OLLAMA_DOWNLOAD_URLS)
+
+    // 把最快的排第一，其余保持顺序作为 fallback
+    const orderedUrls = [
+      fastestUrl,
+      ...OllamaManager.OLLAMA_DOWNLOAD_URLS.filter(u => u !== fastestUrl),
+    ]
 
     let lastError: Error | null = null
     const MAX_RETRIES = 3
-    const RETRY_DELAY = 3000 // 3秒后重试
+    const RETRY_DELAY = 3000
 
-    for (let i = 0; i < OllamaManager.OLLAMA_DOWNLOAD_URLS.length; i++) {
-      const url = OllamaManager.OLLAMA_DOWNLOAD_URLS[i]
+    for (let i = 0; i < orderedUrls.length; i++) {
+      const url = orderedUrls[i]
 
-      // 每个源最多重试 MAX_RETRIES 次（支持断点续传）
       for (let retry = 0; retry <= MAX_RETRIES; retry++) {
         try {
+          let lastTime = Date.now()
+          let lastBytes = 0
+          let speed = 0
           await this.downloadFile(url, zipPath, (progress, downloaded, total) => {
-            this.sendProgress({ id: '__ollama_install__', status: 'downloading', progress, downloadedBytes: downloaded, totalBytes: total })
+            const now = Date.now()
+            const elapsed = (now - lastTime) / 1000
+            if (elapsed >= 0.5) {
+              speed = Math.round((downloaded - lastBytes) / elapsed)
+              lastTime = now
+              lastBytes = downloaded
+            }
+            this.sendProgress({ id: '__ollama_install__', status: 'downloading', progress, downloadedBytes: downloaded, totalBytes: total, speed })
           })
           lastError = null
           break
         } catch (err) {
           lastError = err instanceof Error ? err : new Error(String(err))
           if (retry < MAX_RETRIES) {
-            // 网络中断，等待后自动重试（downloadFile 支持 Range 续传）
             this.sendProgress({ id: '__ollama_install__', status: 'downloading', progress: -1 })
             await this.sleep(RETRY_DELAY)
             continue
@@ -387,7 +404,7 @@ export class OllamaManager {
       if (!lastError) break
 
       // 换到不同域名的下载源时，删除部分文件（不同源文件可能不同，续传不可靠）
-      const nextUrl = OllamaManager.OLLAMA_DOWNLOAD_URLS[i + 1]
+      const nextUrl = orderedUrls[i + 1]
       if (nextUrl && new URL(nextUrl).hostname !== new URL(url).hostname) {
         try { fs.unlinkSync(zipPath) } catch { /* ignore */ }
         try { fs.unlinkSync(zipPath + '.downloading') } catch { /* ignore */ }
@@ -440,6 +457,9 @@ export class OllamaManager {
     if (!fs.existsSync(this.ollamaExe)) {
       throw new Error('安装失败：未找到 ollama.exe')
     }
+
+    // 检测并安装 Visual C++ Runtime（CUDA GPU 加速依赖）
+    await this.ensureVCRuntime()
 
     this.sendProgress({ id: '__ollama_install__', status: 'ready', progress: 100 })
     this.sendStatus({ installed: true, running: false })
@@ -757,6 +777,110 @@ export class OllamaManager {
 
   // --- Private helpers ---
 
+  /**
+   * 检测系统是否已安装 Visual C++ 2015-2022 Runtime (x64)。
+   * 通过注册表查询 VC++ Redistributable 的安装记录。
+   */
+  private isVCRuntimeInstalled(): boolean {
+    try {
+      // 查询注册表中 VC++ 2015-2022 x64 Redistributable
+      const result = execSync(
+        'reg query "HKLM\\SOFTWARE\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\X64" /v Installed 2>nul',
+        { timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] }
+      ).toString()
+      return result.includes('0x1')
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * 如果系统缺少 VC++ Runtime，静默安装（解压包中自带 vc_redist.x64.exe）。
+   */
+  private async ensureVCRuntime(): Promise<void> {
+    if (this.isVCRuntimeInstalled()) {
+      console.log('[ollama] VC++ Runtime 已安装，跳过')
+      return
+    }
+
+    const vcRedist = path.join(this.ollamaDir, 'vc_redist.x64.exe')
+    if (!fs.existsSync(vcRedist)) {
+      console.log('[ollama] 未找到 vc_redist.x64.exe，跳过')
+      return
+    }
+
+    console.log('[ollama] 正在安装 VC++ Runtime（GPU 加速依赖）...')
+    try {
+      await new Promise<void>((resolve, reject) => {
+        execFile(vcRedist, ['/install', '/quiet', '/norestart'], (err) => {
+          if (err) reject(err)
+          else resolve()
+        })
+      })
+      console.log('[ollama] VC++ Runtime 安装完成')
+    } catch (err) {
+      // 安装失败不阻断流程（可能缺管理员权限），CPU 模式仍可用
+      console.log(`[ollama] VC++ Runtime 安装失败（GPU 可能不可用）: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
+  /**
+   * 并行对所有 URL 发起 GET Range 探测，返回最快响应的 URL。
+   * 超时 5 秒，全部失败则返回第一个 URL。
+   */
+  private raceFastestUrl(urls: string[]): Promise<string> {
+    return new Promise((resolve) => {
+      let resolved = false
+      const reqs: http.ClientRequest[] = []
+
+      const finish = (url: string) => {
+        if (resolved) return
+        resolved = true
+        for (const r of reqs) {
+          try { r.destroy() } catch { /* ignore */ }
+        }
+        console.log(`[ollama] 最快下载源: ${url}`)
+        resolve(url)
+      }
+
+      const timer = setTimeout(() => finish(urls[0]), 5000)
+
+      for (const url of urls) {
+        const doProbe = (probeUrl: string, redirects = 0) => {
+          if (resolved || redirects > 5) return
+          const isHttps = probeUrl.startsWith('https')
+          const mod = isHttps ? https : http
+          const req = mod.get(probeUrl, {
+            headers: { Range: 'bytes=0-0' },
+            timeout: 4000,
+          }, (res) => {
+            // 跟随重定向
+            if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+              let redirectUrl = res.headers.location
+              if (redirectUrl.startsWith('/')) {
+                const parsed = new URL(probeUrl)
+                redirectUrl = `${parsed.protocol}//${parsed.host}${redirectUrl}`
+              }
+              doProbe(redirectUrl, redirects + 1)
+              return
+            }
+            // 200 或 206 都算成功
+            if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+              res.destroy() // 不需要读数据
+              clearTimeout(timer)
+              finish(url)
+            }
+          })
+          req.on('timeout', () => req.destroy())
+          req.on('error', () => { /* ignore */ })
+          reqs.push(req)
+        }
+
+        doProbe(url)
+      }
+    })
+  }
+
   private async downloadFile(
     url: string,
     dest: string,
@@ -811,14 +935,18 @@ export class OllamaManager {
           const file = fs.createWriteStream(partialPath, { flags: isPartial ? 'a' : 'w' })
           let downloaded = isPartial ? startByte : 0
           let lastPercent = 0
+          let lastProgressTime = 0
 
           res.on('data', (chunk: Buffer) => {
             downloaded += chunk.length
             file.write(chunk)
-            const percent = totalSize > 0 ? Math.round((downloaded / totalSize) * 100) : 0
-            if (percent > lastPercent) {
-              lastPercent = percent
-              onProgress(percent, downloaded, totalSize)
+            const percent = totalSize > 0 ? Math.floor((downloaded / totalSize) * 100) : 0
+            const now = Date.now()
+            // 百分比递增 或 每 300ms 至少更新一次（保证速度实时显示）
+            if (percent > lastPercent || now - lastProgressTime >= 300) {
+              if (percent > lastPercent) lastPercent = percent
+              lastProgressTime = now
+              onProgress(lastPercent, downloaded, totalSize)
             }
           })
 

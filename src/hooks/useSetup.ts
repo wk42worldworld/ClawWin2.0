@@ -8,7 +8,7 @@ export const MODEL_PROVIDERS: ModelProvider[] = [
     baseUrl: 'https://www.mybotworld.com/api/v1',
     apiFormat: 'openai-completions',
     models: [
-      { id: 'gpt-5.2', name: 'GPT-5.2', reasoning: false, contextWindow: 128000, maxTokens: 32768 },
+      { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash Preview', reasoning: false, contextWindow: 1000000, maxTokens: 65536 },
     ],
   },
   // ── 国内直连 ──
