@@ -96,8 +96,16 @@ export class ConfigMigrator {
 
     // 更新 meta 信息（如果存在）
     if (newConfig.meta) {
-      newConfig.meta.lastTouchedVersion = '3.2.8'
+      newConfig.meta.lastTouchedVersion = '3.2.9'
       newConfig.meta.lastTouchedAt = new Date().toISOString()
+    }
+
+    // 迁移 OpenAI 直连 provider 的 API 格式：openai-completions → openai-responses
+    // GPT-5.4+ 不再支持旧的 /v1/chat/completions 端点
+    // 注意：clawwinweb 等代理服务仍使用 openai-completions，不做迁移
+    if (newConfig.models?.providers?.openai?.api === 'openai-completions') {
+      newConfig.models.providers.openai.api = 'openai-responses'
+      this.log('info', '已将 openai 的 API 格式从 openai-completions 迁移为 openai-responses')
     }
 
     // 确保 gateway.auth.token 存在（如果有 gateway 配置）

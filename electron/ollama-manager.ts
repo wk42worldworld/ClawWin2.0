@@ -271,6 +271,23 @@ export class OllamaManager {
   constructor(ollamaBaseDir?: string) {
     const baseDir = ollamaBaseDir ?? path.join(os.homedir(), '.openclaw')
     this.ollamaDir = path.join(baseDir, 'ollama')
+
+    // 检测目录是否可写，不可写则回退到 ~/.openclaw/ollama
+    if (ollamaBaseDir) {
+      try {
+        fs.mkdirSync(this.ollamaDir, { recursive: true })
+        // 尝试写入测试文件验证写权限
+        const testFile = path.join(this.ollamaDir, '.write-test')
+        fs.writeFileSync(testFile, '')
+        fs.unlinkSync(testFile)
+      } catch {
+        // EPERM 等权限错误，回退到用户目录
+        const fallback = path.join(os.homedir(), '.openclaw', 'ollama')
+        console.log(`[ollama] ${this.ollamaDir} 无写权限，回退到 ${fallback}`)
+        this.ollamaDir = fallback
+      }
+    }
+
     this.ollamaExe = path.join(this.ollamaDir, 'ollama.exe')
     this.modelsDir = path.join(this.ollamaDir, 'models')
 
@@ -793,12 +810,16 @@ export class OllamaManager {
 
           const file = fs.createWriteStream(partialPath, { flags: isPartial ? 'a' : 'w' })
           let downloaded = isPartial ? startByte : 0
+          let lastPercent = 0
 
           res.on('data', (chunk: Buffer) => {
             downloaded += chunk.length
             file.write(chunk)
             const percent = totalSize > 0 ? Math.round((downloaded / totalSize) * 100) : 0
-            onProgress(percent, downloaded, totalSize)
+            if (percent > lastPercent) {
+              lastPercent = percent
+              onProgress(percent, downloaded, totalSize)
+            }
           })
 
           res.on('end', () => {

@@ -92,8 +92,9 @@ export const MODEL_PROVIDERS: ModelProvider[] = [
     id: 'openai',
     name: 'OpenAI (GPT)',
     baseUrl: 'https://api.openai.com/v1',
-    apiFormat: 'openai-completions',
+    apiFormat: 'openai-responses',
     models: [
+      { id: 'gpt-5.4', name: 'GPT-5.4', reasoning: false, contextWindow: 400000, maxTokens: 128000 },
       { id: 'gpt-5.2', name: 'GPT-5.2', reasoning: false, contextWindow: 400000, maxTokens: 128000 },
       { id: 'gpt-5.1', name: 'GPT-5.1', reasoning: false, contextWindow: 400000, maxTokens: 128000 },
       { id: 'gpt-5-mini', name: 'GPT-5 Mini', reasoning: true, contextWindow: 400000, maxTokens: 128000 },
