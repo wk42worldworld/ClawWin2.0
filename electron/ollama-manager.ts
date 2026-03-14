@@ -260,6 +260,7 @@ export class OllamaManager {
   private downloadAbort: AbortController | null = null
   private pullRequest: http.ClientRequest | null = null
   private mainWindow: BrowserWindow | null = null
+  private installing = false
 
   // 下载地址列表（并行竞速，自动选最快源）
   private static OLLAMA_DOWNLOAD_URLS = [
@@ -375,6 +376,16 @@ export class OllamaManager {
   }
 
   async install(): Promise<void> {
+    if (this.installing) return
+    this.installing = true
+    try {
+      await this._doInstall()
+    } finally {
+      this.installing = false
+    }
+  }
+
+  private async _doInstall(): Promise<void> {
     // Ensure directory exists
     fs.mkdirSync(this.ollamaDir, { recursive: true })
 
@@ -858,13 +869,21 @@ export class OllamaManager {
     return new Promise((resolve) => {
       let resolved = false
       const reqs: http.ClientRequest[] = []
+      const responses: http.IncomingMessage[] = []
+
+      const cleanup = () => {
+        for (const r of reqs) {
+          try { r.destroy() } catch { /* ignore */ }
+        }
+        for (const r of responses) {
+          try { r.destroy() } catch { /* ignore */ }
+        }
+      }
 
       const finish = (url: string, speed?: number) => {
         if (resolved) return
         resolved = true
-        for (const r of reqs) {
-          try { r.destroy() } catch { /* ignore */ }
-        }
+        cleanup()
         console.log(`[ollama] 最快下载源: ${url}${speed ? ` (${(speed / 1024).toFixed(0)} KB/s)` : ''}`)
         resolve(url)
       }
@@ -882,7 +901,10 @@ export class OllamaManager {
             headers: { Range: `bytes=0-${PROBE_BYTES - 1}` },
             timeout: TIMEOUT - 500,
           }, (res) => {
+            responses.push(res)
+            if (resolved) { res.destroy(); return }
             if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+              res.destroy()
               let redirectUrl = res.headers.location
               if (redirectUrl.startsWith('/')) {
                 const parsed = new URL(probeUrl)
@@ -910,7 +932,6 @@ export class OllamaManager {
             })
             res.on('end', () => {
               if (resolved) return
-              // 文件可能小于 PROBE_BYTES，也算成功
               if (received > 0) {
                 const elapsed = (Date.now() - startTime) / 1000
                 const speed = elapsed > 0 ? received / elapsed : 0
