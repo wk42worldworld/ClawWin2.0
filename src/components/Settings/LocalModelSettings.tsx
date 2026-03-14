@@ -252,11 +252,13 @@ export const LocalModelSettings: React.FC<LocalModelSettingsProps> = ({ onSaved 
   const [applyingModel, setApplyingModel] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [modelsDir, setModelsDir] = useState<string>('')
+  const [installDir, setInstallDir] = useState<string>('')
   const [changingDir, setChangingDir] = useState(false)
   const [activeModel, setActiveModel] = useState<string>('')
   const [stopping, setStopping] = useState(false)
   const unsubProgressRef = useRef<(() => void) | null>(null)
   const unsubStatusRef = useRef<(() => void) | null>(null)
+  const installPercentRef = useRef(0)
 
   // Subscribe to progress events
   useEffect(() => {
@@ -264,16 +266,23 @@ export const LocalModelSettings: React.FC<LocalModelSettingsProps> = ({ onSaved 
       if (state.id === '__ollama_install__') {
         // Ollama install progress
         if (state.status === 'ready') {
+          installPercentRef.current = 0
           setInstalling(false)
           setInstallProgress(null)
           refreshStatus()
         } else if (state.status === 'error') {
+          installPercentRef.current = 0
           setInstalling(false)
           setInstallProgress(null)
           setError(state.error ?? '安装失败')
         } else {
+          const rawPercent = state.progress ?? 0
+          // 单调递增：只允许百分比向前走，不允许回退
+          if (rawPercent > installPercentRef.current) {
+            installPercentRef.current = rawPercent
+          }
           setInstallProgress({
-            progress: state.progress ?? 0,
+            progress: installPercentRef.current,
             downloadedBytes: state.downloadedBytes,
             totalBytes: state.totalBytes,
             speed: state.speed,
@@ -305,6 +314,7 @@ export const LocalModelSettings: React.FC<LocalModelSettingsProps> = ({ onSaved 
     refreshHardware()
     refreshActiveModel()
     window.electronAPI.ollama.getModelsDir().then(setModelsDir).catch(() => {})
+    window.electronAPI.ollama.getInstallDir().then(setInstallDir).catch(() => {})
   }, [])
 
   const refreshActiveModel = useCallback(async () => {
@@ -342,6 +352,7 @@ export const LocalModelSettings: React.FC<LocalModelSettingsProps> = ({ onSaved 
   const handleInstallOllama = useCallback(async () => {
     setInstalling(true)
     setError(null)
+    installPercentRef.current = 0
     try {
       await window.electronAPI.ollama.install()
     } catch (err) {
@@ -435,6 +446,18 @@ export const LocalModelSettings: React.FC<LocalModelSettingsProps> = ({ onSaved 
     }
   }, [modelsDir, refreshStatus, refreshModels])
 
+  const handleChangeInstallDir = useCallback(async () => {
+    setError(null)
+    try {
+      const selected = await window.electronAPI.dialog.selectFolder(installDir || undefined)
+      if (!selected) return
+      await window.electronAPI.ollama.setInstallDir(selected)
+      setInstallDir(selected)
+    } catch (err) {
+      setError(`更改目录失败: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }, [installDir])
+
   const isModelInstalled = (modelId: string) => {
     return installedModels.some(m => m === modelId || m === `${modelId}:latest`)
   }
@@ -480,6 +503,22 @@ export const LocalModelSettings: React.FC<LocalModelSettingsProps> = ({ onSaved 
           )}
         </div>
       </div>
+
+      {/* Ollama Install Directory (show when not installed) */}
+      {!ollamaStatus.installed && installDir && (
+        <div className="local-model-storage-dir">
+          <span className="local-model-storage-label">安装目录:</span>
+          <code className="local-model-storage-path" title={installDir}>{installDir}</code>
+          <button
+            className="btn-secondary"
+            style={{ fontSize: '12px', padding: '4px 12px', marginLeft: '8px', whiteSpace: 'nowrap' }}
+            onClick={handleChangeInstallDir}
+            disabled={installing}
+          >
+            更改目录
+          </button>
+        </div>
+      )}
 
       {/* Ollama Install Progress */}
       {installing && installProgress && (

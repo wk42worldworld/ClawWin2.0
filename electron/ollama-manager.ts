@@ -261,20 +261,32 @@ export class OllamaManager {
   private pullRequest: http.ClientRequest | null = null
   private mainWindow: BrowserWindow | null = null
 
-  // 下载地址列表（按速度优先级排列，自动尝试下一个）
+  // 下载地址列表（并行竞速，自动选最快源）
   private static OLLAMA_DOWNLOAD_URLS = [
-    'https://gh.llkk.cc/https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip',     // GitHub 加速（国内最快）
-    'https://gh-proxy.com/https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip',   // GitHub 代理（国内备选）
-    'https://ollama.com/download/ollama-windows-amd64.zip',                                                       // 官方 CDN
-    'https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip',                         // GitHub 原始地址
+    'https://gh.llkk.cc/https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip',
+    'https://gh-proxy.com/https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip',
+    'https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip',
+    'https://ollama.com/download/ollama-windows-amd64.zip',
   ]
 
   constructor(ollamaBaseDir?: string) {
-    const baseDir = ollamaBaseDir ?? path.join(os.homedir(), '.openclaw')
+    // 优先使用用户保存的自定义安装目录
+    let savedInstallDir: string | undefined
+    try {
+      const uiConfigPath = path.join(os.homedir(), '.openclaw', 'clawwin-ui.json')
+      if (fs.existsSync(uiConfigPath)) {
+        const uiConfig = JSON.parse(fs.readFileSync(uiConfigPath, 'utf-8'))
+        if (uiConfig.ollamaInstallDir && typeof uiConfig.ollamaInstallDir === 'string') {
+          savedInstallDir = uiConfig.ollamaInstallDir
+        }
+      }
+    } catch { /* ignore */ }
+
+    const baseDir = savedInstallDir ?? ollamaBaseDir ?? path.join(os.homedir(), '.openclaw')
     this.ollamaDir = path.join(baseDir, 'ollama')
 
     // 检测目录是否可写，不可写则回退到 ~/.openclaw/ollama
-    if (ollamaBaseDir) {
+    if (!savedInstallDir && ollamaBaseDir) {
       try {
         fs.mkdirSync(this.ollamaDir, { recursive: true })
         // 尝试写入测试文件验证写权限
@@ -310,6 +322,17 @@ export class OllamaManager {
 
   setModelsDir(dir: string): void {
     this.modelsDir = dir
+  }
+
+  getOllamaDir(): string {
+    return this.ollamaDir
+  }
+
+  setOllamaDir(dir: string): void {
+    // 用户选的是父目录，实际安装到其下的 ollama 子目录
+    this.ollamaDir = path.join(dir, 'ollama')
+    this.ollamaExe = path.join(this.ollamaDir, 'ollama.exe')
+    this.modelsDir = path.join(this.ollamaDir, 'models')
   }
 
   setMainWindow(win: BrowserWindow | null) {
@@ -429,28 +452,28 @@ export class OllamaManager {
     // Clean up zip
     try { fs.unlinkSync(zipPath) } catch { /* ignore */ }
 
-    // Verify — ollama.exe might be nested in a subdirectory (e.g., ollama-windows-amd64/)
+    // Verify — ollama.exe might be nested in a subdirectory (e.g., ollama-windows-amd64/ or deeper)
     if (!fs.existsSync(this.ollamaExe)) {
-      // Find ollama.exe and move entire contents of its parent to ollamaDir
-      const entries = fs.readdirSync(this.ollamaDir, { withFileTypes: true })
-      for (const entry of entries) {
-        if (entry.isDirectory()) {
-          const subDir = path.join(this.ollamaDir, entry.name)
-          const exeInSub = path.join(subDir, 'ollama.exe')
-          if (fs.existsSync(exeInSub)) {
-            // Move all files from subdirectory to ollamaDir
-            const subFiles = fs.readdirSync(subDir)
-            for (const f of subFiles) {
-              const src = path.join(subDir, f)
-              const dst = path.join(this.ollamaDir, f)
-              try { fs.rmSync(dst, { recursive: true, force: true }) } catch { /* ignore */ }
-              fs.renameSync(src, dst)
-            }
-            // Remove now-empty subdirectory
-            try { fs.rmdirSync(subDir) } catch { /* ignore */ }
-            break
+      // Recursively find ollama.exe
+      const found = this.findFileRecursive(this.ollamaDir, 'ollama.exe')
+      if (found) {
+        const foundDir = path.dirname(found)
+        if (foundDir !== this.ollamaDir) {
+          // Move all files from found directory to ollamaDir
+          const files = fs.readdirSync(foundDir)
+          for (const f of files) {
+            const src = path.join(foundDir, f)
+            const dst = path.join(this.ollamaDir, f)
+            try { fs.rmSync(dst, { recursive: true, force: true }) } catch { /* ignore */ }
+            fs.renameSync(src, dst)
           }
+          // Clean up empty parent dirs
+          try { fs.rmSync(foundDir, { recursive: true, force: true }) } catch { /* ignore */ }
         }
+      } else {
+        // Log what's actually in the directory for debugging
+        const allFiles = this.listFilesRecursive(this.ollamaDir, 3)
+        console.log(`[ollama] ollama.exe not found. Directory contents:\n${allFiles.join('\n')}`)
       }
     }
 
@@ -825,36 +848,40 @@ export class OllamaManager {
   }
 
   /**
-   * 并行对所有 URL 发起 GET Range 探测，返回最快响应的 URL。
-   * 超时 5 秒，全部失败则返回第一个 URL。
+   * 并行对所有 URL 实际下载一小段数据（512KB），谁先下完谁最快。
+   * 超时 8 秒，全部失败则返回第一个 URL。
    */
   private raceFastestUrl(urls: string[]): Promise<string> {
+    const PROBE_BYTES = 512 * 1024 // 512KB
+    const TIMEOUT = 8000
+
     return new Promise((resolve) => {
       let resolved = false
       const reqs: http.ClientRequest[] = []
 
-      const finish = (url: string) => {
+      const finish = (url: string, speed?: number) => {
         if (resolved) return
         resolved = true
         for (const r of reqs) {
           try { r.destroy() } catch { /* ignore */ }
         }
-        console.log(`[ollama] 最快下载源: ${url}`)
+        console.log(`[ollama] 最快下载源: ${url}${speed ? ` (${(speed / 1024).toFixed(0)} KB/s)` : ''}`)
         resolve(url)
       }
 
-      const timer = setTimeout(() => finish(urls[0]), 5000)
+      const timer = setTimeout(() => finish(urls[0]), TIMEOUT)
 
       for (const url of urls) {
+        const startTime = Date.now()
+
         const doProbe = (probeUrl: string, redirects = 0) => {
           if (resolved || redirects > 5) return
           const isHttps = probeUrl.startsWith('https')
           const mod = isHttps ? https : http
           const req = mod.get(probeUrl, {
-            headers: { Range: 'bytes=0-0' },
-            timeout: 4000,
+            headers: { Range: `bytes=0-${PROBE_BYTES - 1}` },
+            timeout: TIMEOUT - 500,
           }, (res) => {
-            // 跟随重定向
             if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
               let redirectUrl = res.headers.location
               if (redirectUrl.startsWith('/')) {
@@ -864,12 +891,33 @@ export class OllamaManager {
               doProbe(redirectUrl, redirects + 1)
               return
             }
-            // 200 或 206 都算成功
-            if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-              res.destroy() // 不需要读数据
-              clearTimeout(timer)
-              finish(url)
+            if (!res.statusCode || res.statusCode >= 400) {
+              res.destroy()
+              return
             }
+            // 实际读取数据来测带宽
+            let received = 0
+            res.on('data', (chunk: Buffer) => {
+              if (resolved) { res.destroy(); return }
+              received += chunk.length
+              if (received >= PROBE_BYTES) {
+                const elapsed = (Date.now() - startTime) / 1000
+                const speed = elapsed > 0 ? received / elapsed : 0
+                res.destroy()
+                clearTimeout(timer)
+                finish(url, speed)
+              }
+            })
+            res.on('end', () => {
+              if (resolved) return
+              // 文件可能小于 PROBE_BYTES，也算成功
+              if (received > 0) {
+                const elapsed = (Date.now() - startTime) / 1000
+                const speed = elapsed > 0 ? received / elapsed : 0
+                clearTimeout(timer)
+                finish(url, speed)
+              }
+            })
           })
           req.on('timeout', () => req.destroy())
           req.on('error', () => { /* ignore */ })
@@ -1051,5 +1099,40 @@ export class OllamaManager {
 
   private sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms))
+  }
+
+  private findFileRecursive(dir: string, fileName: string, depth = 5): string | null {
+    if (depth <= 0) return null
+    try {
+      const entries = fs.readdirSync(dir, { withFileTypes: true })
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name)
+        if (entry.isFile() && entry.name.toLowerCase() === fileName.toLowerCase()) {
+          return fullPath
+        }
+        if (entry.isDirectory()) {
+          const found = this.findFileRecursive(fullPath, fileName, depth - 1)
+          if (found) return found
+        }
+      }
+    } catch { /* ignore permission errors */ }
+    return null
+  }
+
+  private listFilesRecursive(dir: string, depth: number): string[] {
+    const result: string[] = []
+    if (depth <= 0) return result
+    try {
+      const entries = fs.readdirSync(dir, { withFileTypes: true })
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name)
+        const rel = path.relative(this.ollamaDir, fullPath)
+        result.push(entry.isDirectory() ? `[DIR] ${rel}` : rel)
+        if (entry.isDirectory()) {
+          result.push(...this.listFilesRecursive(fullPath, depth - 1))
+        }
+      }
+    } catch { /* ignore */ }
+    return result
   }
 }

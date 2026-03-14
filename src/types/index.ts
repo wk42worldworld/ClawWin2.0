@@ -114,6 +114,8 @@ interface ElectronOllama {
   cancelDownload: () => Promise<void>
   getModelsDir: () => Promise<string>
   setModelsDir: (dir: string) => Promise<void>
+  getInstallDir: () => Promise<string>
+  setInstallDir: (dir: string) => Promise<void>
   onProgress: (callback: (state: LocalModelState) => void) => () => void
   onStatusChange: (callback: (status: OllamaStatus) => void) => () => void
 }

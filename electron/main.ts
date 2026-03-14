@@ -1199,6 +1199,16 @@ function setupIPC() {
       await ollamaManager.start()
     }
   })
+
+  // Ollama install directory
+  ipcMain.handle('ollama:getInstallDir', () => ollamaManager?.getOllamaDir() ?? '')
+  ipcMain.handle('ollama:setInstallDir', (_event, dir: string) => {
+    if (!ollamaManager) throw new Error('OllamaManager not initialized')
+    const ui = readUiConfig()
+    ui.ollamaInstallDir = dir
+    writeUiConfig(ui)
+    ollamaManager.setOllamaDir(dir)
+  })
 }
 
 function initGatewayManager() {
